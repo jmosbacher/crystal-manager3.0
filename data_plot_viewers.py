@@ -54,19 +54,20 @@ class DataPlotEditorBase(HasTraits):
         self.axs = []
         for n in range(1, num + 1):
             if self.layout == 'vertical':
-                self.axs.append(self.figure.add_subplot(num, 1, n, axisbg='#F4EAEA'))
+                self.axs.append(self.figure.add_subplot(num, 1, n, axisbg='#F4EAEA',zorder=2))
             elif self.layout == 'horizontal':
-                self.axs.append(self.figure.add_subplot(1, num,n , axisbg='#F4EAEA')) #FFFFCC
+                self.axs.append(self.figure.add_subplot(1, num,n , axisbg='#F4EAEA',zorder=2)) #FFFFCC
         return self.axs
 
     def add_common_labels(self,xlabel=None,ylabel=None):
-        ax = self.figure.add_subplot(111, axisbg='none', frameon=False)
+        ax = self.figure.add_subplot(111, axisbg='none', frameon=False,zorder=1)
         ax.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='off')
         ax.grid(b=False)
         if xlabel is not None:
             ax.set_xlabel(xlabel)
         if ylabel is not None:
             ax.set_ylabel(ylabel)
+        self.figure.sca(self.axs[0])
 
     def clear_plots(self):
         for ax in self.axs:

@@ -178,8 +178,8 @@ class SpectrumFitter2D(SpectrumFitterBase):
         except:
             self.fit_success = False
 
-    def plot_data(self, title=' ', figure=None, axs=None, titlesize=12, step=1, image=False, nlevel=50):
-        grid_x, grid_y = np.mgrid[self.xdata.min():self.xdata.max():step, self.ydata.min():self.ydata.max():step]
+    def plot_data(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5, image=False, nlevel=50):
+        grid_x, grid_y = np.mgrid[self.xdata.min()-10:self.xdata.max()+10:step, self.ydata.min()+10:self.ydata.max()-10:step]
         xy = np.empty((len(self.xdata), 2))
         xy[:,0], xy[:,1] = self.xdata, self.ydata
         grid_z = griddata(xy, self.fit_f / step, (grid_x, grid_y), method='cubic', fill_value=0.0)
@@ -196,7 +196,7 @@ class SpectrumFitter2D(SpectrumFitterBase):
             Z = self.zdata.reshape(self.shape)
             im = ax.imshow(Z.T, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()), origin='lower',
                         cmap=cm.jet)
-        levels = np.linspace(grid_z.min(), grid_z.max(), nlevel)
+        levels = np.linspace(grid_z.min()+5, grid_z.max()-5, nlevel)
         im = ax.contour(grid_x, grid_y,grid_z,levels=levels)
         if title is not ' ':
             fig.suptitle(title)
