@@ -78,7 +78,7 @@ class AutoImportToolBase(HasTraits):
         show_border=True,label='Files to import'),
         HGroup(
             Item(name='delimiter', label='Delimiter', ),
-            Item(name='data_folder', label='Data Folder',enabled_when='folders==True' ),
+            Item(name='data_folder', label='Data Folder',visible_when='folders==True' ),
             Item(name='import_selected', show_label=False, ),
             Item(name='import_all', show_label=False, ),
             spring,
@@ -197,7 +197,7 @@ class SpectrumImportToolTab(AutoSpectrumImportTool):
         VGroup(
             HGroup(
                 Item(name='delimiter', label='Delimiter', ),
-                Item(name='data_folder', label='Data Folder',enabled_when='folders==True' ),
+                Item(name='data_folder', label='Data Folder',visible_when='folders==True' ),
                 ),
             HGroup(
                 Item(name='import_selected', show_label=False, ),
@@ -278,7 +278,7 @@ class ExpImportToolTab(AutoExperimentImportTool):
         VGroup(
             HGroup(
                 Item(name='delimiter', label='Delimiter', ),
-                Item(name='data_folder', label='Data Folder',enabled_when='folders==True' ),
+                Item(name='data_folder', label='Data Folder',visible_when='folders==True' ),
                 ),
             HGroup(
                 Item(name='import_selected', show_label=False, ),

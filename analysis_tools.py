@@ -101,6 +101,7 @@ class AnalysisToolBase(HasTraits):
 
     plot = Button('Plot')
     plot_what = Enum('Statistic',['bg_corrected','signal','bg','ref','Result Table','Statistic','Scatter Matrix'])
+    plot_data = Enum('bg_corrected',['bg_corrected','bg','ref','signal'])
     subplots = Bool(True)
     #plot_result = Button('Plot Result')
     #plot_data = Button('Plot Data')
@@ -110,8 +111,9 @@ class AnalysisToolBase(HasTraits):
 
     ### Options ###
     calc_type = Enum(['Rolling Window', 'Global'])
-    rolling_statistic = Enum(['max','median','skew','sum','kurt','mean','mean','min','quantile','var','std'])
+    rolling_statistic = Enum(['max','median','skew','sum','kurt','mean','min','quantile','var','std'])
     global_statistic = Enum(['hist','pct_change','kde','diff'])
+    hist_bins = Int(100)
     plot_type = Enum('hist',['hist','kde','autocorrelation','lag'])
     result_plot_type = Enum(['Lines','Area','Hist'])
     #use_window = Bool(False)
@@ -188,8 +190,14 @@ class MeasurementAnalysisTool(AnalysisToolBase):
                     Item(name='subplots', label='Sub Plots',enabled_when="plot_what=='Result Table'" ),
                     spring,
                     Item(name='alpha', label='Opacity', ),
+                    Item(name='hist_bins', label='Bins',visible_when="(plot_what=='Result Table' and result_plot_type=='Hist')"
+                                                                     " or (plot_what=='Statistic' and plot_type=='hist')"  ),
                     ),
-            Item(name='plot', show_label=False, ),
+                HGroup(
+                    Item(name='plot', show_label=False, ),
+                    Item(name='plot_data', label='Data', ),
+                ),
+
             Item(name='display', show_label=False, style='custom', springy=False),
                 ),
             #show_border=True, label='Analysis'
@@ -221,12 +229,21 @@ class MeasurementAnalysisTool(AnalysisToolBase):
             elif self.result_plot_type=='Area':
                 self.calc_result.plot.area(ax=ax, subplots=self.subplots,stacked=False,alpha=self.alpha)
             elif self.result_plot_type=='Hist':
-                self.calc_result.plot.hist(ax=ax, subplots=self.subplots, stacked=False, alpha=self.alpha)
+                self.calc_result.plot.hist(ax=ax, subplots=self.subplots, stacked=False,
+                                           alpha=self.alpha,bins=self.hist_bins)
+
         elif self.plot_what=='Statistic':
-            if self.plot_type in ['kde','hist']:
-                self.measurement.plot_by_name(ax=ax, plot_name=self.plot_type)
+            if self.plot_type=='kde':
+                self.measurement.plot_by_name(ax=ax, plot_name=self.plot_type,data_name=self.plot_data)
+
+
+            elif self.plot_type=='hist':
+                self.measurement.plot_by_name(ax=ax, plot_name=self.plot_type,
+                                              data_name=self.plot_data,bins=self.hist_bins)
+
             elif self.plot_type in ['lag','autocorrelation']:
-                self.measurement.plot_special(ax=ax, plot_name=self.plot_type)
+                self.measurement.plot_special(ax=ax, plot_name=self.plot_type,data_name=self.plot_data)
+
         elif self.plot_what=='Scatter Matrix':
             self.measurement.plot_scatter_matrix(ax=ax, plot_name=self.plot_type)
 
@@ -309,17 +326,25 @@ class ExperimentAnalysisTool(AnalysisToolBase):
                 HGroup(
 
                         Item(name='plot_what', label='Data to plot'),
-                        Item(name='plot_type', label='Statistic', enabled_when="plot_what=='Statistic'"),
+                        Item(name='plot_type', label='Statistic', visible_when="plot_what=='Statistic'"),
                     Item(name='result_plot_type', show_label=False, visible_when="plot_what=='Result Table'"),
                     ),
                     HGroup(
 
-                        Item(name='clear_plot', label='Clear Previous', ),
+
                         Item(name='subplots', label='Sub Plots', enabled_when="plot_what=='Result Table'"),
+                        Item(name='hist_bins', label='Bins',
+                             visible_when="(plot_what=='Result Table' and result_plot_type=='Hist')"
+                                          " or (plot_what=='Statistic' and plot_type=='hist')"),
                         spring,
                         Item(name='alpha', label='Opacity', ),
                     ),
-                    HGroup(Item(name='plot', show_label=False,springy=True ),),
+                    HGroup(Item(name='plot', show_label=False,springy=True ),
+                           spring,
+                           Item(name='clear_plot', label='Clear Previous', ),
+                           Item(name='plot_data', label='Data',visible_when="plot_what=='Statistic'" ), ),
+
+
                     Item(name='display', show_label=False, style='custom', springy=False),
                 ),
                 # show_border=True, label='Analysis'
@@ -355,19 +380,24 @@ class ExperimentAnalysisTool(AnalysisToolBase):
             elif self.result_plot_type == 'Area':
                 self.calc_result.plot.area(ax=ax, subplots=self.subplots, stacked=False, alpha=self.alpha)
             elif self.result_plot_type == 'Hist':
-                self.calc_result.plot.hist(ax=ax, subplots=self.subplots, stacked=False, alpha=self.alpha)
+                self.calc_result.plot.hist(ax=ax, subplots=self.subplots, stacked=False,
+                                           alpha=self.alpha,bins=self.hist_bins)
 
         elif self.plot_what == 'Statistic':
-            if self.plot_type in ['kde', 'hist']:
+            if self.plot_type == 'kde':
                 for measurement in self.experiment.measurements:
-                    measurement.plot_by_name(ax=ax, plot_name=self.plot_type, alpha=self.alpha)
+                    measurement.plot_by_name(ax=ax, plot_name=self.plot_type, alpha=self.alpha,data_name=self.plot_data)
+            elif self.plot_type == 'hist':
+                for measurement in self.experiment.measurements:
+                    measurement.plot_by_name(ax=ax, plot_name=self.plot_type, alpha=self.alpha,
+                                             data_name=self.plot_data,bins=self.hist_bins)
 
             elif self.plot_type in ['lag', 'autocorrelation']:
                 for measurement in self.experiment.measurements:
-                    measurement.plot_special(ax=ax, plot_name=self.plot_type)
+                    measurement.plot_special(ax=ax, plot_name=self.plot_type,data_name=self.plot_data, )
 
         elif self.plot_what == 'Scatter Matrix':
-            self.measurement.plot_scatter_matrix(ax=ax, plot_name=self.plot_type)
+            self.experiment.plot_scatter_matrix(ax=ax,data_name=self.plot_data)
 
         ax.relim()
         ax.autoscale_view()

@@ -75,6 +75,7 @@ class MeasurementPlottingTool(PlottingToolBase):
     def _plot_fired(self):
         if self.new_window:
             figure = None
+            ax = None
         else:
             figure = self.display.figure
         kwargs = dict(
@@ -84,9 +85,10 @@ class MeasurementPlottingTool(PlottingToolBase):
             round_wl=self.round_wl
         )
         for n,data_name in enumerate(self.plot_data_names):
-            ax = figure.add_subplot(len(self.plot_data_names),1,n+1)
+            if figure is not None:
+                ax = figure.add_subplot(len(self.plot_data_names),1,n+1)
             kwargs['title'] = data_name
-            self.measurement.plot(data_name=data_name,ax=ax,**kwargs)
+            ax = self.measurement.plot_data(data_name=data_name,figure=figure,ax=ax,**kwargs)
 
 
 

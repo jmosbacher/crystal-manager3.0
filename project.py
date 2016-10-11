@@ -16,7 +16,6 @@ try:
     import cPickle as pickle
 except:
     import pickle
-
 from crystal import Crystal, CrystalTableEditor
 from experiment import BaseExperiment
 from auxilary_functions import merge_experiments
@@ -27,9 +26,24 @@ from data_importing import ExpImportToolTab, AutoSpectrumImportTool
 from integration_tool import ComparisonIntegrationTool, ExperimentIntegrationTool
 from integration_results import IntegrationResultBase
 from saving import BaseSaveHandler
+from traitsui.ui_editors.array_view_editor import ArrayViewEditor
+from pyface.api import FileDialog, confirm, error, YES, CANCEL
 
 class ProjectHandler(BaseSaveHandler):
     extension = Str('prj')
+
+
+    def object_export_dataframe_changed(self, info):
+        fileDialog = FileDialog(action='save as', title='Save As',
+                                wildcard=self.wildcard,
+                                parent=info.ui.control,
+                                default_filename=info.object.name.replace(' ','_') + '_dataframe')
+
+        fileDialog.open()
+        if fileDialog.path == '' or fileDialog.return_code == CANCEL:
+            return False
+        df = info.object.make_db_dataframe()
+        df.to_csv(fileDialog.path)
 
 
 class Project(CanSaveMixin):
@@ -62,6 +76,8 @@ class Project(CanSaveMixin):
     import_folders = Button('Import Folders')
     import_files = Button('Import Files')
 
+    export_dataframe = Button('Export DataFrame')
+
     import_tool = Instance(ExpImportToolTab,transient=True)
 
     view = View(
@@ -72,6 +88,7 @@ class Project(CanSaveMixin):
             HGroup(
                 Item(name='add_new', show_label=False),
                 Item(name='edit', show_label=False, enabled_when='selected'),
+                Item(name='export_dataframe',show_label=False),
                 #Item(name='compare', show_label=False),
                 #Item(name='import_folders', show_label=False),
                 #Item(name='import_files', show_label=False),
@@ -162,21 +179,16 @@ class Project(CanSaveMixin):
     def _add_new_fired(self):
         self.add_new_experiment()
 
-    def comparison_integration_tool(self):
-        tool = ComparisonIntegrationTool(project=self)
-        tool.edit_traits()
-
-    def experiment_integration_tool(self):
-        tool = ExperimentIntegrationTool(project=self)
-        tool.edit_traits()
-
-    def comparison_tool(self):
-        comp = AllExperimentList(self)
-        comp.edit_traits()
+    def make_db_dataframe(self,**kwargs):
+        data = {}
+        for exp in self.experiments:
+            data[exp.name] = exp.make_db_dataframe()
+        final = pd.concat(data)
+        final.index.rename('Experiment',level=0,inplace=True)
+        return final
 
     #def _import_data_fired(self):
         #self.selected.import_data()
-
 
 
 

@@ -332,14 +332,23 @@ class SpectrumExperiment(BaseExperiment):
         with open(path, 'rb') as f:
             self.measurements = pickle.load(f)
 
-    def make_dataframe(self,bin_data=False,round_wl=False):
+    def make_dataframe(self,data_name='bg_corrected',**kwargs):
         data = {}
         for meas in self.measurements:
-            data[meas.ex_wl] = meas.create_series(bin=bin_data,round_wl=round_wl)
+            data[meas.ex_wl] = meas.create_series(data_name=data_name,**kwargs)
         return pd.DataFrame(data)
+
+    def make_db_dataframe(self):
+        data = {}
+        for meas in self.measurements:
+            data[meas.ex_wl] = meas.make_db_dataframe()
+        final = pd.concat(data)
+        final.index.rename('ex_wl',level=0,inplace=True)
+        return final
 
     def save_pandas(self,path=None, format=None):
         df = self.make_dataframe(bin_data=self.export_binned,round_wl=True)
+
         functions = {
                     'CSV':df.to_csv, 'Text':df.to_string, 'Excel':df.to_excel, 'Latex':df.to_latex,
         }
@@ -467,7 +476,7 @@ class SpectrumExperiment(BaseExperiment):
                 em_spectrum = meas.bg_corrected()
             xs.append( np.full(len(em_spectrum), ex_wl) )
             ys.append( em_spectrum[:, 0] )
-            zs.append(em_spectrum[:, 1])
+            zs.append( em_spectrum[:, 1] )
 
         Z = np.concatenate(zs, axis=0)
         X, Y = np.concatenate(xs, axis=0), np.concatenate(ys, axis=0)
@@ -664,6 +673,7 @@ class SpectrumExperiment(BaseExperiment):
         else:
             fig.canvas.draw()
         return ax
+
     def plot_scatter_matrix(self,**kwargs):
         figure = kwargs.get('figure',None)
         axs = kwargs.get('axs',None)
