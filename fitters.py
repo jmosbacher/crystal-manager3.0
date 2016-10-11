@@ -9,11 +9,12 @@ from auxilary_functions import twoD_Gaussian
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.interpolate import griddata
-
+from fit_results import FitResult1D, FitResult2D, FitResultBase
 
 
 
 class SpectrumFitterBase(HasTraits):
+    result_factory = FitResultBase
 
     xdata = Array()
     ydata = Array()
@@ -26,12 +27,13 @@ class SpectrumFitterBase(HasTraits):
     nexp = Property(Int)
     fit_fcn = Property(Function)
 
-
     p = Array()
     pcov = Array()
 
+    chi2 = Property()
     fit_f = Property(Array)
     fit_success = Bool(True)
+
     #def __init__(self,):
         #super(SpectrumFitter, self).__init__()
 
@@ -43,6 +45,9 @@ class SpectrumFitterBase(HasTraits):
     )
 
     def _get_fit_fcn(self):
+        raise NotImplementedError
+
+    def _get_chi2(self):
         raise NotImplementedError
 
     def _get_fit_f(self):
@@ -58,9 +63,14 @@ class SpectrumFitterBase(HasTraits):
         raise NotImplementedError
 
 
+    def result_object(self):
+        result = self.result_factory()
+        values = self.get(result.editable_traits())
+        result.set(trait_change_notify=False, **values)
+
 class SpectrumFitter1D(SpectrumFitterBase):
-
-
+    result_factory = FitResult1D
+    nparams = 3
     def _get_fit_fcn(self):
         N = self.nexp
         def gaussians(x, *p):
@@ -74,8 +84,12 @@ class SpectrumFitter1D(SpectrumFitterBase):
         return len(self.peaks)
 
     def _get_fit_f(self):
-        self.perform_fit()
+        if not self.fit_success:
+            self.perform_fit()
         return self.fit_fcn(self.xdata, self.p)
+
+    def _get_chi2(self):
+        return np.sum((self.fit_data()-self.ydata)**2)/(self.ydata.size-self.p.size)
 
     def perform_fit(self):
 
@@ -130,6 +144,8 @@ class SpectrumFitter1D(SpectrumFitterBase):
 
 
 class SpectrumFitter2D(SpectrumFitterBase):
+    result_factory = FitResult2D
+    nparams = 6
     shape = Tuple()
     zdata = Array()
 
@@ -151,6 +167,9 @@ class SpectrumFitter2D(SpectrumFitterBase):
         if not len(self.p):
             self.perform_fit()
         return self.fit_fcn((self.xdata, self.ydata), self.p)
+
+    def _get_chi2(self):
+        return np.sum((self.fit_data() - self.zdata) ** 2) / (self.zdata.size - self.p.size)
 
     def perform_fit(self):
         if self.nbins:
@@ -179,9 +198,39 @@ class SpectrumFitter2D(SpectrumFitterBase):
             self.fit_success = False
 
     def plot_data(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5, image=False, nlevel=50):
-        grid_x, grid_y = np.mgrid[self.xdata.min()-10:self.xdata.max()+10:step, self.ydata.min()+10:self.ydata.max()-10:step]
+        grid_x, grid_y = np.mgrid[self.xdata.min():self.xdata.max():step,
+                         self.ydata.min():self.ydata.max():step]
         xy = np.empty((len(self.xdata), 2))
         xy[:,0], xy[:,1] = self.xdata, self.ydata
+        grid_z = griddata(xy, self.zdata / step, (grid_x, grid_y), method='cubic', fill_value=0.0)
+        if figure is None:
+            fig = plt.figure()
+        else:
+            fig = figure
+        if axs is None:
+            ax = fig.add_subplot(111)
+        else:
+            ax = axs
+        levels = np.linspace(grid_z.min(),  grid_z.max(), nlevel)
+        contfplot = ax.contourf(grid_x, grid_y, grid_z, cmap=cm.jet, levels=levels, )
+        #im = ax.imshow(grid_z.T, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()), origin='lower',
+                        #cmap=cm.jet)
+
+        if title is not ' ':
+            fig.suptitle(title)
+        # plt.imshow(Z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower')
+        if figure is None:
+            plt.show()
+        else:
+            fig.canvas.draw()
+        return fig,ax
+
+    def plot_fit(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5, image=False, nlevel=50):
+
+        grid_x, grid_y = np.mgrid[self.xdata.min():self.xdata.max():step,
+                         self.ydata.min():self.ydata.max():step]
+        xy = np.empty((len(self.xdata), 2))
+        xy[:, 0], xy[:, 1] = self.xdata, self.ydata
         grid_z = griddata(xy, self.fit_f / step, (grid_x, grid_y), method='cubic', fill_value=0.0)
         if figure is None:
             fig = plt.figure()
@@ -191,13 +240,8 @@ class SpectrumFitter2D(SpectrumFitterBase):
             ax = fig.add_subplot(111)
         else:
             ax = axs
-
-        if image:
-            Z = self.zdata.reshape(self.shape)
-            im = ax.imshow(Z.T, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()), origin='lower',
-                        cmap=cm.jet)
-        levels = np.linspace(grid_z.min()+5, grid_z.max()-5, nlevel)
-        im = ax.contour(grid_x, grid_y,grid_z,levels=levels)
+        levels = np.linspace(grid_z.min(), grid_z.max(), nlevel)
+        contour = ax.contour(grid_x, grid_y, grid_z, levels=levels, color='k')
         if title is not ' ':
             fig.suptitle(title)
         # plt.imshow(Z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower')
@@ -205,8 +249,7 @@ class SpectrumFitter2D(SpectrumFitterBase):
             plt.show()
         else:
             fig.canvas.draw()
-
-
+        return fig, ax
 
 #### Unit Tests ####
 
@@ -225,7 +268,8 @@ if __name__=='__main__':
     ydata = y + 0.3 * np.random.normal(size=len(xdata))
 
     fitter1 = SpectrumFitter1D(xdata=xdata, ydata=ydata, peaks=[(0.5,2.5), (5.0, 6.5)],normalize=False, nbins=0)
-    fitter1.plot_data(image=True)
+    ax = fitter1.plot_data()
+
 
     grid_x, grid_y = np.mgrid[0:10:0.2, 0:10:0.2]
 
@@ -236,7 +280,11 @@ if __name__=='__main__':
 
     fitter2 = SpectrumFitter2D(xdata=grid_x.ravel(), ydata=grid_y.ravel(),zdata=grid_z.ravel(),
                                shape=grid_z.shape, peaks=[[4.2,3.8,1.8,1.0],[1.1,5.7,2.1,3.5]], normalize=False, nbins=0)
-    fitter2.plot_data(step=0.1)
+    figure = plt.figure()
+
+    fig,ax = fitter2.plot_data(figure=figure,step=0.1)
+    fitter2.plot_fit(step=0.1, axs=ax,figure=fig)
+    plt.show()
     print fitter2.p.reshape(2,6)
 
 

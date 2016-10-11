@@ -64,11 +64,11 @@ def merge_spectrums(spectrum1,spectrum2,res=0.065):
     """
 
     spectrum1.em_wl = (min(spectrum1.em_wl[0],spectrum2.em_wl[0]),max(spectrum1.em_wl[1],spectrum2.em_wl[1]))
-    spectrum1.signal = merge_data_arrays(spectrum1.norm_signal(), spectrum2.norm_signal(),res=res)
+    spectrum1.signal = merge_data_arrays(spectrum1.normalized('signal'), spectrum2.normalized('signal'),res=res)
     if len(spectrum2.bg):
-        spectrum1.bg = merge_data_arrays(spectrum1.norm_bg(), spectrum2.norm_bg(),res=res)
+        spectrum1.bg = merge_data_arrays(spectrum1.normalized('bg'), spectrum2.normalized('bg'),res=res)
     if len(spectrum2.ref):
-        spectrum1.ref = merge_data_arrays(spectrum1.norm_ref(), spectrum2.norm_ref(), res=res)
+        spectrum1.ref = merge_data_arrays(spectrum1.normalized('ref'), spectrum2.normalized('ref'), res=res)
     spectrum1.frames = 1
     spectrum1.exposure = 1.0
 
@@ -94,8 +94,10 @@ def read_ascii_file(path, file_del):
                 sig = False
                 continue
             if sig:
-                s = line.split(file_del)
-                data.append([eval(s[0]), eval(s[1])])
+                data.append(np.fromstring(line,count=2, sep=file_del))
+                #s = line.split(file_del)
+                #data.append([eval(s[0]), eval(s[1])])
+
             else:
                 sup.append(line)
     if len(data):
@@ -216,8 +218,8 @@ def import_folder(path, **kwargs):
     return True
 
 def bin_data_array(data,nbins=200):
-    bins = np.array_split(data,nbins,axis=0)
-    out = np.empty((nbins,2))
+    bins = np.array_split(data,int(nbins),axis=0)
+    out = np.empty((int(nbins),2))
     for idx,bin in enumerate(bins):
         out[idx,0] = np.mean(bin[:,0])
         out[idx,1] = np.sum(bin[:,1])

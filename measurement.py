@@ -123,6 +123,7 @@ class SpectrumMeasurement(BaseMeasurement):
     signal = Array()
     bg = Array()
     ref = Array()
+    bg_corrected = Property(Array)
     file_data = Dict()
 
     #####       Flags      #####
@@ -130,6 +131,7 @@ class SpectrumMeasurement(BaseMeasurement):
     has_bg = Property(Bool) #Bool(False)
     has_bg_corrected = Property(Bool)
     has_ref = Property(Bool) #Bool(False)
+    has_fits = Property(Bool)
     color = Property() #Tuple(0.0, 0.0, 0.0)  # Enum(['r', 'g', 'b', 'y', 'g', 'k','m','c','k'])
 
     #####       Calculated Data      #####
@@ -260,7 +262,11 @@ class SpectrumMeasurement(BaseMeasurement):
             return True
         else:
             return False
-
+    def _get_has_fits(self):
+        if len(self.fits):
+            return True
+        else:
+            return False
     def _get_fit_data(self):
         data = np.zeros_like(self.signal)
         data[:, 0] = self.signal[:, 0]
@@ -286,41 +292,37 @@ class SpectrumMeasurement(BaseMeasurement):
         if self.has_ref:
             self.ref[:, 1] *= scale
 
-    def create_series(self,**kwargs):
+    def create_series(self,normalize=True,**kwargs):
         """
 
         :return:
         """
         bin = kwargs.get('bin',False)
-        nbins = kwargs.get('nbins',0)
+        nbins = kwargs.get('nbins',None)
         round_wl = kwargs.get('round_wl',False)
         data_name = kwargs.get('data_name','bg_corrected')
         normed = np.zeros((1, 2))
-        if not self.has_signal:
+        if not getattr(self,'has_'+data_name):
             return normed
 
-        if data_name in ['bg_corrected', 'signal']:
-            normed = self.normalize(self.signal)
-        elif data_name == 'bg':
-            normed = self.normalize(self.bg)
-        elif data_name == 'ref':
-            normed = self.normalize(self.ref)
-        elif data_name == 'fit':
-            normed = np.zeros_like(self.signal)
-            normed[:, 0] = self.signal[:, 0]
-            for a, m, s in self.fits:
-                normed[:, 1] += gauss(normed[:, 0], a, m, s)
-        if bin:
+        if normalize:
+            normed = self.normalized(data_name)
+        else:
+            normed = getattr(self,data_name)
+
+        if nbins is not None:
+            pass
             if nbins:
                 bins=nbins
             else:
                 bins = round(normed[:, 0].max()) - round(normed[:, 0].min())
-
             normed = bin_data_array(normed,nbins=bins)
+
         if round_wl:
             indx = np.around(normed[:, 0],decimals=1)
         else:
             indx = normed[:, 0]
+
         return pd.Series(data=normed[:, 1], index=indx, name=self.ex_wl)
 
     def create_dataframe(self,**kwargs):
@@ -331,95 +333,56 @@ class SpectrumMeasurement(BaseMeasurement):
                 data_dict[data_name] = self.create_series(data_name=data_name,**kwargs)
         return pd.DataFrame(data_dict)
 
-    def normalize(self,data):
-        #return data
-        normed = np.copy(data)
-        normed[:,1] = data[:,1]/(self.exposure*self.frames)
-        return normed
+    def make_db_dataframe(self,data_names=('signal', 'bg', 'ref')):
 
-    def norm_bg(self):
-        return self.normalize(self.bg)
+        final = None
+        for data_name in data_names:
+            if getattr(self, 'has_' + data_name):
+                new = pd.DataFrame(data=self.normalized(data_name),columns=['em_wl',data_name])
+                if final is not None:
+                    final = pd.merge_asof(final,new,on='em_wl')
+                else:
+                    final = new
+        return final.set_index('em_wl')
 
-    def bin_bg(self,bins=None):
-        """
-
-        :return:
-        """
-        binned = np.asarray([])
-        if self.has_bg:
-            normed = self.normalize(self.bg)
-            if bins is None:
-                bins = round(normed[:, 0].max()) - round(normed[:, 0].min())
-            binned = bin_data_array(normed,nbins=bins)
-
-        return binned
-
-    def bin_ref(self,bins=None):
-        """
-
-        :return:
-        """
-        binned = np.asarray([])
-        if self.has_ref:
-            normed = self.normalize(self.ref)
-            if bins is None:
-                bins = round(normed[:, 0].max()) - round(normed[:, 0].min())
-            binned = bin_data_array(normed,nbins=bins)
-
-        return binned
-
-    def norm_signal(self):
-        return self.normalize(self.signal)
-
-    def norm_ref(self):
-        return self.normalize(self.ref)
-
-    def bg_corrected(self,normalize=True):
-        if normalize:
-            normed = self.normalize(self.signal)
-        else:
-            normed = self.signal
-        normed[:,1] -= np.resize(self.bg[:,1],normed[:,1].shape)
-
+    def normalized(self,data_name):
+        normed = np.copy(getattr(self,data_name))
+        normed[:,1] = normed[:,1]/(self.exposure*self.frames)
         return normed
 
 
-    def bin_data(self,data_name='bg_corrected'):
+
+    def _get_bg_corrected(self):
+
+        sig = np.copy(self.signal)
+        sig[:,1] -= np.resize(self.bg[:,1],sig[:,1].shape)
+
+        return sig
+
+
+    def bin_data(self,data_name='bg_corrected',**kwargs):
         """
         :return:
         """
+        normalize = kwargs.get('normalize',True)
+        nbins = kwargs.get('nbins',0)
+
         normed = np.zeros((1, 2))
         if not self.has_signal:
             return normed
 
-        if data_name in ['bg_corrected', 'signal']:
-            normed = self.normalize(self.signal)
-        elif data_name=='bg':
-            normed = self.normalize(self.bg)
-        elif data_name=='ref':
-            normed = self.normalize(self.ref)
-        elif data_name=='fit':
-            normed = np.zeros_like(self.signal)
-            normed[:,0] = self.signal[:,0]
-            for a,m,s in self.fits:
-                normed[:, 1] += gauss(normed[:,0], a, m, s)
+        if normalize:
+            normed = self.normalized(data_name)
+        else:
+            normed = getattr(self,data_name)
 
-
-        bins=round(normed[:,0].max())-round(normed[:,0].min())
+        if nbins:
+            bins = nbins
+        else:
+            bins=round(normed[:,0].max())-round(normed[:,0].min())
         binned = bin_data_array(normed,nbins=bins)
 
-        if data_name=='bg_corrected':
-            bg = self.bin_bg()
-            binned[:,1] -=  np.resize(bg[:,1],binned[:,1].shape)
-
-        # print sorted(averaged)
-
         return binned
-
-    def integrate_with_fit(self,data,l,r):
-        x = np.trim_zeros(np.where(np.logical_and(data[:, 0] <= r, data[:, 0] >= l), data[:, 0], 0.0))
-        y = np.trim_zeros(np.where(np.logical_and(data[:, 0] <= r, data[:, 0] >= l), data[:, 1], 0.0))
-        return integrate_gaussian(x,y)
 
     def integrate_bg_corrected(self,l,r,fit=False):
         '''
@@ -440,48 +403,18 @@ class SpectrumMeasurement(BaseMeasurement):
         bg = np.sum(np.where(np.logical_and(bgnd[:, 0] <= r, bgnd[:, 0] >= l), bgnd[:, 1], 0.0))
         return sig-bg
 
-    def integrate_signal(self,l,r,fit=False):
+    def integrate_data(self,l,r,data_name='bg_corrected'):
         '''
-
+        :param data_name: data to integrate
         :param l: integration minimum (inclusive)
         :param r: integration maximum (inclusive)
         :return: background corrected integration result
         '''
         if not self.has_signal:
             return 0.0
-        sig = 0.0
-        signal = self.norm_signal()
-        if fit:
-            sig = self.integrate_with_fit(signal,l,r)
-        else:
-            sig = np.sum(np.where(np.logical_and(signal[:, 0] <= r, signal[:, 0] >= l), signal[:, 1], 0.0))
-        return sig
-
-    def integrate_bg(self, l, r,fit=False):
-        '''
-
-        :param l: integration minimum (inclusive)
-        :param r: integration maximum (inclusive)
-        :return: background corrected integration result
-        '''
-        if not self.has_bg:
-            return 0.0
-        bgnd = self.norm_bg()
-        bg = np.sum(np.where(np.logical_and(bgnd[:, 0] <= r, bgnd[:, 0] >= l), bgnd[:, 1], 0.0))
-        return bg
-
-    def integrate_ref(self, l, r,fit=False):
-        '''
-
-        :param l: integration minimum (inclusive)
-        :param r: integration maximum (inclusive)
-        :return: background corrected integration result
-        '''
-        if not self.has_ref:
-            return 0.0
-        ref = self.norm_ref()
-        ref_i = np.sum(np.where(np.logical_and(ref[:, 0] <= r, ref[:, 0] >= l), ref[:, 1], 0.0))
-        return ref_i
+        data = getattr(self,data_name)
+        result = np.sum(np.where(np.logical_and(data[:, 0] <= r, data[:, 0] >= l), data[:, 1], 0.0))
+        return result
 
 
     def plot_data(self,**kwargs ):
@@ -511,36 +444,24 @@ class SpectrumMeasurement(BaseMeasurement):
         #alpha = kwargs.get('alpha', 1.0)
         if self.has_signal:
             ser = self.create_series(data_name=data_name,**kwargs)
-
             axs = getattr( ser.plot,plot_name)(color=self.color, **kwargs)
             if ax is not None:
                 if title is None:
                     ax.set_title(data_name+' '+plot_name, fontsize=12)
 
-                # plt.show()
             else:
                 plt.show()
             return axs
 
-    def plot_fits(self,ax=None,legend=True,xrange=(300,1000),**kwargs):
-        if len(self.fits):
-            xdata = np.linspace(*xrange,num=200)
-            for a,m,s in self.fits:
-                ser = pd.Series(data=gauss(xdata,a,m,s),index=xdata, name=self.ex_wl)
-                axs = ser.plot(color=self.color, legend=legend, ax=ax)
-            if ax is None:
-                plt.show()
-
-
-    def plot_special(self,plot_name='autocorrelation',title=None, **kwargs):
+    def plot_special(self,plot_name='autocorrelation',title=None,data_name ='bg_corrected', **kwargs):
         if not self.has_signal:
             return
         fig = kwargs.get('figure', plt.figure())
         ax = kwargs.get('ax', fig.add_subplot(111))
-
+        nbins = kwargs.get('nbins',150)
 
         ser = self.create_series(**kwargs)
-        data_name = kwargs.get('data_name', 'BG corrected')
+        #data_name = kwargs.get('data_name', 'BG corrected')
         axs = {
             'lag':lag_plot,
             'autocorrelation':autocorrelation_plot,
@@ -551,18 +472,18 @@ class SpectrumMeasurement(BaseMeasurement):
             plt.show()
 
     def plot_scatter_matrix(self,**kwargs):
+        diag = kwargs.get('diag','kde')
         if not self.has_signal:
             return
         fig = kwargs.get('figure', plt.figure())
         ax = kwargs.get('ax', fig.add_subplot(111))
         df = self.create_dataframe(**kwargs)
-        scatter_matrix(df,ax=ax, diagonal='kde')
+        scatter_matrix(df,ax=ax, diagonal=diag)
 
     def calc_statistics(self,statistic='hist',**kwargs):
         ser = self.create_series(**kwargs)
         if statistic == 'hist':
-            bins = kwargs.get('bins', 20)
-
+            bins = kwargs.get('bins', 150)
             cnts, divs = np.histogram(ser,bins=bins)
             return pd.Series(data=cnts, index=divs[:-1]+np.diff(divs)/2, name=self.ex_wl)
 

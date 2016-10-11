@@ -14,6 +14,7 @@ class FittingToolBase(HasTraits):
     name = Str(' ')
     fits_list = Array()  # DelegatesTo('selected')
     fitter = Instance(SpectrumFitterBase,transient=True)
+    fit_result = Any()
     # fitter = Instance(SpectrumFitter)
 
     # use_fit = Bool(False)
@@ -176,7 +177,7 @@ class FittingTool1D(FittingToolBase):
         if len(self.display.axs):
             for meas in self.measurements:
                 meas.plot_data(ax=self.display.axs[0], legend=False)
-                meas.plot_fits(ax=self.display.axs[1], legend=False, frange=self.display.frange)
+                #meas.plot_fits(ax=self.display.axs[1], legend=False, frange=self.display.frange)
         self.set_titles()
         self.display.draw()
         self.display.configure_selector()
@@ -293,6 +294,7 @@ class FittingTool2D(FittingToolBase):
                 p = np.ravel(fitter.p)
             self.experiment.fit_results = p
             self.fits_list = p
+            self.fit_result = fitter.result_object()
 
         self.fitter = fitter
         self.refresh_display()
@@ -347,7 +349,10 @@ class FittingTool2D(FittingToolBase):
             fitter.xdata, fitter.ydata, fitter.zdata = self.experiment.collect_XYZ_arrays()
             fitter.p = self.fits_list.ravel()
             fitter.plot_data(figure=self.display.figure,
-                                axs=self.display.axs[1])
+                                axs=self.display.axs[1],)
+            fitter.plot_fit(figure=self.display.figure,
+                                axs=self.display.axs[1],)
+
 
         self.set_titles()
         self.display.draw_patches()
