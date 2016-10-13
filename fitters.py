@@ -261,7 +261,7 @@ if __name__=='__main__':
         params = np.asarray(p).reshape(N, 3)
         # if N == 1:
         # return p[0]* np.exp(-(x - p[1]) ** 2 / (2 * p[2]))
-        return np.sum([a*np.exp(-(x - m)** 2/(2*s)) for a, m, s in params], axis=0)
+        return np.sum([a*np.exp(-(x - m)/(2*s** 2)) for a, m, s in params], axis=0)
 
     xdata = np.linspace(0, 10, 10000)
     y = gaussians(xdata,[5.5, 1.3, 0.8,4.0, 6.0, 1.7] )

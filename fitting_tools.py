@@ -116,7 +116,7 @@ class FittingTool1D(FittingToolBase):
         fitter = SpectrumFitter1D(peaks=peaks)
         frange = self.display.frange
         for meas in self.measurements:
-            data = meas.bg_corrected()
+            data = meas.bg_corrected
             data = data[np.where(np.logical_and(data[:,0]>=frange[0],data[:,0]<=frange[1]))]
             if len(data)==0:
                 continue

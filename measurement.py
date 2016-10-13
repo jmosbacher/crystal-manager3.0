@@ -126,7 +126,10 @@ class SpectrumMeasurement(BaseMeasurement):
     bg_corrected = Property(Array)
     file_data = Dict()
 
+    simulation_data = Dict()
+
     #####       Flags      #####
+    is_simulated = Bool(False)
     has_signal = Property(Bool) #Bool(False)
     has_bg = Property(Bool) #Bool(False)
     has_bg_corrected = Property(Bool)
@@ -211,7 +214,7 @@ class SpectrumMeasurement(BaseMeasurement):
 
 
     def _signal_default(self):
-        return np.array([[],[]])
+        return np.array([])
 
     def _bg_default(self):
         return np.array([[],[]])
@@ -241,7 +244,10 @@ class SpectrumMeasurement(BaseMeasurement):
             return False
 
     def _get_resolution(self):
-        return np.mean(np.diff(self.signal[:,0]))
+        if len(self.signal):
+            return np.mean(np.diff(self.signal[:,0]))
+        else:
+            return 0.0075
 
     def _get_color(self):
         return wl_to_rgb(self.ex_wl)

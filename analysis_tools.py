@@ -16,6 +16,7 @@ from auxilary_functions import calc_df_statistics
 from traitsui.ui_editors.array_view_editor import ArrayViewEditor
 from data_plot_viewers import SingleDataPlot
 from export_tools import DataFrameExportTool
+from viewers import DFrameViewer
 try:
     import cPickle as pickle
 except:
@@ -135,6 +136,7 @@ class AnalysisToolBase(HasTraits):
     def _export_result_fired(self):
         tool = DataFrameExportTool(df=self.calc_result)
         tool.edit_traits()
+
 
 class MeasurementAnalysisTool(AnalysisToolBase):
     measurement = Any()
@@ -284,7 +286,7 @@ class ExperimentAnalysisTool(AnalysisToolBase):
     experiment = Any()
     #array_titles = List(['BG corrected', 'Signal', 'Background', 'Reference'])
     calc_data_name = Str('bg_corrected')  # values = [('bg_corrected','BG Corrected'),(,'Signal'), (,'Background'), (,'Reference')]
-    result_array = Instance(HasTraits,())
+    result_array = Instance(DFrameViewer)
 
     view = View(
 
@@ -358,7 +360,7 @@ class ExperimentAnalysisTool(AnalysisToolBase):
         self.experiment = experiment
 
     def _result_array_default(self):
-        return DynamicArrayView()
+        return DFrameViewer()
 
     def _plot_fired(self):
         if self.clear_plot:
@@ -433,30 +435,16 @@ class ExperimentAnalysisTool(AnalysisToolBase):
             return
         results.dropna(how='all',inplace=True)
         self.calc_result = results
-        ArrawViewClass = type('ArrawViewClass',(HasTraits,),
-                              {
-                               'array': Array(),
-                                'view': View(
-                                    HGroup(Item(name='array',show_label=False, style='custom',springy=True,
-                                        editor=ArrayViewEditor(titles=[str(x) for x in results.columns.values],
-                                            format='%g',
-                                            show_index=False,)),
-                                           scrollable=True),
-                                    scrollable=True,
-                                resizable=True)
-                              })
-        new = ArrawViewClass()
-        new.array = results.as_matrix()
-        self.result_array = new
-        if len(new.array)>1:
-            self.has_result = True
-        #array_view = DynamicArrayView()
-        #column_df = pd.DataFrame(columns=results.columns)
-        #column_df.loc[0] = results.columns.values
-        #array_view.array = pd.concat([column_df,results]).as_matrix()
-        #self.result_array = array_view
+        self.result_array.df = results
 
-        #self.new_array_view = self.trait_view()
 
-        #self.result_array.edit_traits(parent=view.parent)
+class ProjectAnalysisTool(HasTraits):
+    project = Any
+
+    view = View(
+
+    )
+    def __init__(self, project):
+        super(ProjectAnalysisTool, self).__init__()
+        self.project = project
 

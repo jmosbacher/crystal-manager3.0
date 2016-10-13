@@ -98,6 +98,10 @@ class ExperimentPlottingTool(PlottingToolBase):
     plot_data_names = List(['bg_corrected']) #values = [('bg_corrected','BG Corrected'),(,'Signal'), (,'Background'), (,'Reference')]
     plot_select = Enum('Mixed', ['Mixed', '3D Surface', '3D Wires',
                                  '3D Polygons', '2D Contours', '2D Image', '1D Lines'])
+
+    nlevel = Int(10)
+    set_levels = Bool(False)
+    level_range = Tuple((0,1e7),cols=2)
     selected_only = Bool(False)
 
     view = View(
@@ -113,7 +117,11 @@ class ExperimentPlottingTool(PlottingToolBase):
             ),
 
 
+            HGroup(Item(name='nlevel', label='Levels'),
+                    Item(name='set_levels', label='Set Levels',enabled_when="plot_select=='2D Contours'"),
+                    Item(name='level_range', label='Set Levels', enabled_when="set_levels"),
 
+                   ),
             HGroup(
                 Item(name='bin', label='Bin Data'),
                 Item(name='nbins', label='Bins', enabled_when='bin' ),
@@ -141,12 +149,15 @@ class ExperimentPlottingTool(PlottingToolBase):
         kwargs = dict(
             figure=figure,
             data_names=self.plot_data_names,
-
+            nlevel=self.nlevel,
             selected_only=self.selected_only,
             bin = self.bin,
             nbins = self.nbins,
             round_wl = self.round_wl
             )
+
+        if self.set_levels:
+            kwargs['level_range'] = self.level_range
 
         {'1D Lines':self.experiment.plot_1d,
         'Mixed': self.experiment.plot_3d_mixed,

@@ -5,6 +5,7 @@ from traitsui.extras.checkbox_column import CheckboxColumn
 import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from traitsui.ui_editors.array_view_editor import ArrayViewEditor
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection, LineCollection
 from matplotlib.colors import colorConverter
@@ -14,6 +15,33 @@ import matplotlib.cm as cmx
 import numpy as np
 import random
 import pandas as pd
+
+class DFrameViewer(HasTraits):
+    df = Instance(pd.DataFrame)
+    array_view = Instance(HasTraits)
+
+    view = View(Item(name='array_view',show_label=False,style='custom'))
+    def _df_default(self):
+        return pd.DataFrame(data=[[0,0,0,0]],columns=['s','t','u','v'])
+
+    def _df_changed(self,old,new):
+        ArrawViewClass = type('ArrawViewClass', (HasTraits,),
+                              {
+                                  'array': Array(),
+                                  'view': View(
+                                      HGroup(Item(name='array', show_label=False, style='custom', springy=True,
+                                                  editor=ArrayViewEditor(
+                                                      titles=[str(x) for x in new.columns.values],
+                                                      format='%g',
+                                                      show_index=False, )),
+                                             scrollable=True),
+                                      scrollable=True,
+                                      resizable=True)
+                              })
+
+        array_view = ArrawViewClass()
+        array_view.array = new.as_matrix()
+        self.array_view = array_view
 
 
 class DictEditor(HasTraits):

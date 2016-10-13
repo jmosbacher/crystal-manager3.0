@@ -450,11 +450,15 @@ class SpectrumExperiment(BaseExperiment):
         plt.title(title)
         plt.show()
 
-    def collect_3d_coordinates(self):
+    def collect_3d_coordinates(self,bin_data=False):
         exem, zs = [], []
         for meas in self.measurements:
             ex_wl=meas.ex_wl
-            em_spectrum=meas.bin_data()
+            if bin_data:
+                em_spectrum = meas.bin_data()
+            else:
+                em_spectrum = meas.bg_corrected
+            #em_spectrum=meas.bin_data()
 
             wls = np.empty(em_spectrum.shape)
             wls[:,0] = np.full(len(em_spectrum), ex_wl)
@@ -635,7 +639,8 @@ class SpectrumExperiment(BaseExperiment):
         figure = kwargs.get('figure',None)
         axs = kwargs.get('axs',None)
         title = kwargs.get('title',' ')
-        nlevel = kwargs.get('nlevel',10)
+        #nlevel = kwargs.get('nlevel',10)
+        #level_range = kwargs.get('level_range',None)
         contf = kwargs.get('contf', True)
         colbar = kwargs.get('colbar', False)
         setlabels = kwargs.get('setlabels', True)
@@ -652,11 +657,15 @@ class SpectrumExperiment(BaseExperiment):
         else:
             ax = axs
         X, Y, Z = self.make_meshgrid()
-        levels = np.linspace(Z.min(),Z.max(),nlevel)
+        if level_range is None:
+            minlev,maxlev = Z.min(),Z.max()
+        else:
+            minlev, maxlev =level_range
+        levels = np.linspace(minlev,maxlev,nlevel)
         if contf:
             contfplot = ax.contourf(X, Y, Z, cmap=cm.jet, levels=levels,)
             if colbar:
-                fig.colorbar(contfplot, ax=ax, format="%d")
+                fig.colorbar(contfplot, ax=ax, format="%.2e")
         contplot = ax.contour(X, Y, Z,  levels=levels, colors='k', )
         if setlabels:
             ax.set_xlabel('Excitation Wavelength')
