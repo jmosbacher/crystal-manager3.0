@@ -11,7 +11,8 @@ import matplotlib.cm as cmx
 from matplotlib import cm
 import matplotlib
 matplotlib.style.use('ggplot')
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
+
+from matplotlib.ticker import LinearLocator, FormatStrFormatter, NullFormatter
 from auxilary_functions import wl_to_rgb
 import numpy as np
 import random
@@ -29,6 +30,7 @@ from saving import BaseSaveHandler
 from pyface.api import FileDialog, confirm, error, YES, CANCEL
 from analysis_tools import ExperimentAnalysisTool
 from pandas.tools.plotting import scatter_matrix
+from scipy.ndimage.filters import gaussian_filter
 try:
     import cPickle as pickle
 except:
@@ -74,6 +76,8 @@ class SpectrumExperiment(BaseExperiment):
 
     int_results = List(IntegrationResultBase)
     fit_results = Array()
+    meshgrid = Tuple(transient=True)
+    has_mesh = Bool(False,transient=True)
 
     #####       UI      #####
     add_type = Enum(['Spectrum', 'Raman', 'Anealing'])
@@ -366,7 +370,7 @@ class SpectrumExperiment(BaseExperiment):
     def plot_1d(self,**kwargs):
         legend = kwargs.get('legend',True)
         selected_only = kwargs.get('selected_only',False)
-        datas = kwargs.get('datas',['signal', 'bg', 'ref'])
+        data_names = kwargs.get('data_names',['signal', 'bg', 'ref'])
         figure = kwargs.get('figure',None)
         title = kwargs.get('title',' ')
         kind = kwargs.get('kind','Spectrum')
@@ -375,12 +379,13 @@ class SpectrumExperiment(BaseExperiment):
             fig = plt.figure()
         else:
             fig = figure
+            fig.clf()
         for meas in self.measurements:
             if meas.__kind__ == kind:
                 if selected_only and not meas.is_selected:
                     continue
-                for n,data in enumerate(datas):
-                    args['ax'] = fig.add_subplot(len(datas),1,n+1, axisbg='#F4EAEA')
+                for n,data in enumerate(data_names):
+                    args['ax'] = fig.add_subplot(len(data_names),1,n+1, axisbg='#F4EAEA')
                     args['data'] = data
                     args['legend'] = legend
                     args['title'] = data
@@ -441,23 +446,24 @@ class SpectrumExperiment(BaseExperiment):
 
         poly.set_alpha(alpha)
         ax.add_collection3d(poly, zs=zs, zdir='y')
-        ax.set_xlabel('Emission')
+        ax.set_xlabel('Emission [nm]')
         ax.set_xlim3d(wl_range)
-        ax.set_ylabel('Excitation')
+        ax.set_ylabel('Excitation [nm]')
         ax.set_ylim3d(min(zs)-10, max(zs)+10)
         ax.set_zlabel('Counts')
         ax.set_zlim3d(cnt_range)
         plt.title(title)
         plt.show()
 
-    def collect_3d_coordinates(self,bin_data=False):
+    def collect_3d_coordinates(self,bin_data=False,data_name='bg_corrected',**kwargs):
         exem, zs = [], []
+
         for meas in self.measurements:
             ex_wl=meas.ex_wl
             if bin_data:
-                em_spectrum = meas.bin_data()
+                em_spectrum = meas.bin_data(data_name)
             else:
-                em_spectrum = meas.bg_corrected
+                em_spectrum = getattr(meas,data_name)
             #em_spectrum=meas.bin_data()
 
             wls = np.empty(em_spectrum.shape)
@@ -469,7 +475,7 @@ class SpectrumExperiment(BaseExperiment):
         exem = np.concatenate(exem, axis=0)
         return exem,cnts
 
-    def collect_XYZ_arrays(self, bin_data=False):
+    def collect_XYZ_arrays(self, bin_data=False,**kwargs):
         xs, ys, zs = [], [], []
 
         for meas in self.measurements:
@@ -477,7 +483,7 @@ class SpectrumExperiment(BaseExperiment):
             if bin_data:
                 em_spectrum = meas.bin_data()
             else:
-                em_spectrum = meas.bg_corrected()
+                em_spectrum = meas.bg_corrected
             xs.append( np.full(len(em_spectrum), ex_wl) )
             ys.append( em_spectrum[:, 0] )
             zs.append( em_spectrum[:, 1] )
@@ -486,16 +492,19 @@ class SpectrumExperiment(BaseExperiment):
         X, Y = np.concatenate(xs, axis=0), np.concatenate(ys, axis=0)
         return X,Y,Z
 
-    def make_meshgrid(self,step=1):
-        exem, cnts = self.collect_3d_coordinates()
-        ex_min, ex_max = exem[:,0].min(), exem[:,0].max()
-        em_min, em_max = exem[:,1].min(), exem[:,1].max()
+    def make_meshgrid(self,step=1,interp_method='linear',**kwargs):
+        if not self.has_mesh:
+            exem, cnts = self.collect_3d_coordinates(**kwargs)
+            ex_min, ex_max = exem[:,0].min(), exem[:,0].max()
+            em_min, em_max = exem[:,1].min(), exem[:,1].max()
 
-        grid_x, grid_y = np.mgrid[ex_min:ex_max:step, em_min:em_max:step]
+            grid_x, grid_y = np.mgrid[ex_min:ex_max:step, em_min:em_max:step]
 
-        grid_z = griddata(exem, cnts/step, (grid_x, grid_y), method='cubic',fill_value=0.0)
-        return grid_x, grid_y, grid_z
+            grid_z = np.clip(griddata(exem, cnts/step, (grid_x, grid_y), method=interp_method,fill_value=0.0),0,np.inf)
+            self.meshgrid = grid_x, grid_y, grid_z
+            self.has_mesh = True
 
+        return self.meshgrid
 
     def plot_3d_wires(self, **kwargs):
         """
@@ -523,9 +532,9 @@ class SpectrumExperiment(BaseExperiment):
 
         ax.plot_wireframe(X,Y,Z, rstride=rstride, cstride=cstride)
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
-        ax.set_xlabel('Excitation Wavelength')
+        ax.set_xlabel('Excitation Wavelength [nm]')
         ax.set_xlim(X.min() - 30, X.max() + 30)
-        ax.set_ylabel('Emission Wavelength')
+        ax.set_ylabel('Emission Wavelength [nm]')
         ax.set_ylim(Y.min() - 30, Y.max() + 30)
         ax.set_zlabel('Counts')
         ax.set_zlim(Z.min(), Z.max() + 100)
@@ -552,7 +561,7 @@ class SpectrumExperiment(BaseExperiment):
             ax = fig.add_subplot(111, projection='3d')
         else:
             ax = axs
-        X, Y, Z = self.make_meshgrid()
+        X, Y, Z = self.make_meshgrid(**kwargs)
         surf = ax.plot_surface(X, Y, Z, rstride=rstride, cstride=cstride, cmap=cm.coolwarm,
                                linewidth=0, antialiased=False)
 
@@ -561,9 +570,9 @@ class SpectrumExperiment(BaseExperiment):
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
         ax.zaxis.set_major_locator(LinearLocator(10))
         ax.zaxis.set_major_formatter(FormatStrFormatter('%d'))
-        ax.set_xlabel('Excitation Wavelength')
+        ax.set_xlabel('Excitation Wavelength [nm]')
         ax.set_xlim(X.min()-30, X.max()+30)
-        ax.set_ylabel('Emission Wavelength')
+        ax.set_ylabel('Emission Wavelength [nm]')
         ax.set_ylim(Y.min()-30, Y.max()+30)
         ax.set_zlabel('Counts')
         fig.suptitle(title)
@@ -589,19 +598,19 @@ class SpectrumExperiment(BaseExperiment):
             fig = figure
             fig.clf()
         if axs is None:
-            ax = fig.add_subplot(111, projection='3d')
+            ax = fig.add_subplot(111, projection='3d',axisbg='none')
         else:
             ax = axs
 
-        X, Y, Z = self.make_meshgrid()
+        X, Y, Z = self.make_meshgrid(**kwargs)
         ax.plot_surface(X, Y, Z, rstride=rstride, cstride=cstride, alpha=alpha)
         cset1 = ax.contourf(X, Y, Z, zdir='z', offset=Z.min()-Z.max()/2, cmap=cmx.coolwarm)
         cset2 = ax.contourf(X, Y, Z, zdir='x', offset=X.min()-30, cmap=cmx.coolwarm)
         cset3 = ax.contourf(X, Y, Z, zdir='y', offset=Y.max()+30, cmap=cmx.coolwarm)
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
-        ax.set_xlabel('Excitation Wavelength')
+        ax.set_xlabel('Excitation Wavelength [nm]')
         ax.set_xlim(X.min()-30, X.max()+30)
-        ax.set_ylabel('Emission Wavelength')
+        ax.set_ylabel('Emission Wavelength [nm]')
         ax.set_ylim(Y.min()-30, Y.max()+30)
         ax.set_zlabel('Counts')
         fig.suptitle(title)
@@ -626,7 +635,7 @@ class SpectrumExperiment(BaseExperiment):
             ax = fig.add_subplot(111)
         else:
             ax = axs
-        X, Y, Z = self.make_meshgrid()
+        X, Y, Z = self.make_meshgrid(**kwargs)
         im = ax.imshow(Z.T, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap=cm.jet)
         fig.suptitle(title)
         #plt.imshow(Z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower')
@@ -639,12 +648,14 @@ class SpectrumExperiment(BaseExperiment):
         figure = kwargs.get('figure',None)
         axs = kwargs.get('axs',None)
         title = kwargs.get('title',' ')
-        #nlevel = kwargs.get('nlevel',10)
-        #level_range = kwargs.get('level_range',None)
+        nlevel = kwargs.get('nlevel',10)
+        level_range = kwargs.get('level_range',None)
         contf = kwargs.get('contf', True)
         colbar = kwargs.get('colbar', False)
         setlabels = kwargs.get('setlabels', True)
         setlimits = kwargs.get('setlimits', True)
+        gsigma = kwargs.get('gsigma', 0.7)
+        set_levels = kwargs.get('set_levels', 'linear')
 
         if figure is None:
             fig = plt.figure()
@@ -656,20 +667,29 @@ class SpectrumExperiment(BaseExperiment):
             ax = fig.add_subplot(111)
         else:
             ax = axs
-        X, Y, Z = self.make_meshgrid()
+        X, Y, Z = self.make_meshgrid(**kwargs)
         if level_range is None:
             minlev,maxlev = Z.min(),Z.max()
         else:
             minlev, maxlev =level_range
-        levels = np.linspace(minlev,maxlev,nlevel)
+        if set_levels is 'linear':
+            levels = np.linspace(minlev,maxlev,nlevel)
+            norm = None
+        else:
+            if minlev<0.001:
+                minlev=0.001
+            lev_exp = np.linspace(np.floor(np.log10(minlev)), np.ceil(np.log10(maxlev)),nlevel)
+            levels = np.power(10, lev_exp)
+            norm=colors.LogNorm()
         if contf:
-            contfplot = ax.contourf(X, Y, Z, cmap=cm.jet, levels=levels,)
+            contfplot = ax.contourf(X, Y, Z, cmap=cm.jet, levels=levels,norm=norm)
             if colbar:
                 fig.colorbar(contfplot, ax=ax, format="%.2e")
+        Z = gaussian_filter(Z,sigma=gsigma)
         contplot = ax.contour(X, Y, Z,  levels=levels, colors='k', )
         if setlabels:
-            ax.set_xlabel('Excitation Wavelength')
-            ax.set_ylabel('Emission Wavelength')
+            ax.set_xlabel('Excitation Wavelength [nm]')
+            ax.set_ylabel('Emission Wavelength [nm]')
         if setlimits:
             ax.set_xlim(X.min(), X.max())
             ax.set_ylim(Y.min(), Y.max())
@@ -682,6 +702,53 @@ class SpectrumExperiment(BaseExperiment):
         else:
             fig.canvas.draw()
         return ax
+
+    def plot_2d_mixed(self,figure=None,colbar=False,rstride=20,cstride=20,**kwargs):
+        #figure = kwargs.get('figure',None)
+        if figure is None:
+            fig = plt.figure(1, figsize=(9, 9))
+        else:
+            fig = figure
+        nullfmt = NullFormatter()
+        fig.clf()
+        # definitions for the axes
+        left, width = 0.1, 0.65
+        bottom, height = 0.1, 0.65
+        bottom_h = left_h = left + width + 0.02
+
+        rect_scatter = [left, bottom, width, height]
+        rect_histx = [left, bottom_h, width, 0.2]
+        rect_histy = [left_h, bottom, 0.2, height]
+
+        # start with a rectangular Figure
+
+
+        ax_main = fig.add_axes(rect_scatter)
+        ax_x = fig.add_axes(rect_histx)
+        ax_y = fig.add_axes(rect_histy)
+
+        ax_x.xaxis.set_major_formatter(nullfmt)
+        ax_x.yaxis.set_major_formatter(FormatStrFormatter('%.1e'))
+
+        ax_y.set_xticklabels(ax_y.xaxis.get_majorticklabels(), rotation=45)
+        ax_y.yaxis.set_major_formatter(nullfmt)
+        ax_y.xaxis.set_major_formatter(FormatStrFormatter('%.1e'))
+
+        self.plot_2d_contour(figure=fig,axs=ax_main,colbar=False,**kwargs)
+        X,Y,Z = self.make_meshgrid(**kwargs)
+        for n in range(0,len(X[0]),rstride):
+            ax_x.plot(X[:,n],Z[:,n], color=wl_to_rgb(min(Y[0,n],780))) #
+
+        for n in range(0,len(Y),cstride):
+            ax_y.plot(Z[n,:],Y[n,:], color=wl_to_rgb(X[n,0]) ) #
+
+        ax_x.set_xlim(ax_main.get_xlim())
+        ax_y.set_ylim(ax_main.get_ylim())
+        if figure is None:
+            plt.show()
+        else:
+            fig.canvas.draw()
+        return
 
     def plot_scatter_matrix(self,**kwargs):
         figure = kwargs.get('figure',None)

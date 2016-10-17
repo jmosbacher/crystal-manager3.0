@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cmx
 from matplotlib import cm
+from pandas.tools.plotting import scatter_matrix
 import matplotlib
 matplotlib.style.use('ggplot')
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
@@ -23,68 +24,6 @@ except:
     import pickle
 from traits.has_dynamic_views \
     import DynamicView, HasDynamicViews, DynamicViewSubElement
-
-
-class DynamicArrayViewHandler(Handler):
-    #array_titles = List(['BG corrected', 'Signal', 'Background', 'Reference'])
-    def object_refresh_view_changed(self,info):
-        if not info.initialized:
-            return
-        #if info.object.refresh_view:
-            #info.object.refresh_view = False
-            #info.object.edit_traits(parent=info.ui.parent)
-
-
-class DynamicArrayView(HasDynamicViews):
-    array = Array()
-    titles = List(['BG corrected', 'Signal', 'Background', 'Reference'])
-
-
-    ui_array = Group(Item(
-            name='array', show_label=False, style='custom',
-            editor=ArrayViewEditor(titles=[' ',],
-                                   format='%g',
-                                   show_index=False, ),
-
-        ),
-        _array_view_order = 5,
-        _array_view_priority = 1,
-
-        )
-
-
-
-
-    def __init__(self, *args, **traits ):
-        super(DynamicArrayView, self).__init__(*args, **traits)
-
-        declaration = DynamicView(
-            name='array_view',
-            id='dynamic_array_view',
-            keywords={
-
-                'dock': 'tab',
-                'resizable': True,
-                'scrollable': True,
-            },
-            use_as_default=True,
-        )
-        self.declare_dynamic_view(declaration)
-
-
-        #self.ui_array = DynamicViewSubElement()
-
-    #def _titles_changed(self):
-        #new_editor=ArrayViewEditor(titles=self.titles,
-                               #format='%g',
-                               #show_index=False, )
-
-        #ui_array = self.trait_view(name='ui_array')
-        #ui_array.editor = new_editor
-
-
-    def _array_default(self):
-        return np.asarray([[0.0,0.0,0.0,0.0]])
 
 
 class AnalysisToolBase(HasTraits):
@@ -441,10 +380,225 @@ class ExperimentAnalysisTool(AnalysisToolBase):
 class ProjectAnalysisTool(HasTraits):
     project = Any
 
-    view = View(
+    refresh = Button('Import All Data')
+    has_df = Bool(False)
+    groupby_list = List(['experiment','ex_wl','em_wl','signal','bg','ref'])
+    groupby_choice = Str('ex_wl')
+    groupby_obj = Any()
+    groupby = Button('Group')
+
+    apply_what = Enum(['filter', 'aggregate'], cols=1)
+    #apply_by = Enum('selected', ['size', 'sum', 'std', 'mean', 'selected', 'describe'])
+    #apply = Button('Apply')
+
+    result_cols = List(['experiment', 'ex_wl', 'em_wl', 'signal', 'bg', 'ref'])
+
+    filter_list = List([])
+    filter_selected = List()
+    filter_statistic = Enum('selected',['size','sum','std','mean','selected' ])
+    filter_logic = Enum(['>','=>','<','=<','=='])
+    filter_value = Float()
+    filter_col = Enum(['ex_wl','em_wl','signal','bg','ref'])
+    apply_filter = Button('Filter Groups')
+
+    agg_statistic = Enum('describe', ['size', 'sum', 'std', 'mean', 'describe'])
+    apply_agg = Button('Aggregate Data')
+
+    plt_kind = Enum('line',['line','hist','box','kde','area','bar'])
+    plt_matrix = Bool(False)
+    plt_alpha = Float(0.5)
+    plt_stacked = Bool(False)
+    plt_subplots = Bool(False)
+    plt_bins = Int(50)
+    plot_result = Button('Plot')
+    #agg_by = Enum(['size','sum','std','mean'])
+    #aggregate = Button('Aggregate')
+
+    export_table = Button('Export Table')
+
+    data_df = Instance(DFrameViewer)
+    view = View(HGroup(
+                    VGroup(
+                        VGroup(
+                        HGroup(Item(name='refresh',show_label=False),
+                            Item(name='groupby_choice',label='Group By',
+                                    editor=EnumEditor(name='object.groupby_list')),
+                               Item(name='groupby',show_label=False,enabled_when='not groupby_obj'),
+
+                        show_border=True,label='Group Data'),
+
+
+                        VGroup(
+                            HGroup(
+                            Item(name='apply_what',show_label=False,style='custom'),
+                               Item(name='result_cols',label='Include',style='custom',
+                                    editor=CheckListEditor(name='object.groupby_list',cols=2)),
+                            ),
+                            HGroup(
+                                Item(name='agg_statistic', show_label=False, ),
+                                show_border=True, label='Statistic', visible_when='apply_what == "aggregate"'),
+
+                            HGroup(
+                            Item(name='filter_statistic',show_label=False,),
+                            Item(name='filter_col', label='of', enabled_when='filter_statistic != "selected"'),
+                            Item(name='filter_logic', show_label=False,enabled_when='filter_statistic != "selected"'),
+                            Item(name='filter_value', show_label=False,enabled_when='filter_statistic != "selected"'),
+                                    show_border=True,label='Filter Logic',visible_when='apply_what == "filter"'),
+                            HGroup(
+                            Item(name='apply_filter', show_label=False,visible_when='apply_what == "filter"'),
+                            Item(name='apply_agg', show_label=False,visible_when='apply_what == "aggregate"'),
+                            ),
+                            show_border=True, label='Apply',enabled_when='groupby_obj'),
+
+                        ),
+
+                        VGroup(
+                            Item(name='filter_list', show_label=False,
+                                 enabled_when='apply_what=="filter" and filter_statistic == "selected"',
+                                 editor=ListStrEditor(selected='filter_selected',
+                                                                          editable=False, multi_select=True),
+                                 resizable=True),
+
+                            show_border=True, label='Group List',enabled_when='groupby_obj'),
+                    ),
+
+                    VGroup(
+                        HGroup(
+                            Item(name='plt_kind', label='Plot'),
+                            Item(name='plt_matrix', label='As matrix',),
+                            Item(name='plt_bins', label='Bins', enabled_when='plt_kind == "hist"'),
+                            show_left=False),
+
+                            HGroup(
+                            Item(name='plt_alpha', label='Opacity', enabled_when='plt_kind in ["area","hist"]'),
+                            Item(name='plt_stacked', label='Stack', ),
+                            Item(name='plt_subplots', label='Subplots', ),
+                            show_left=False),
+
+
+                        Item(name='plot_result', show_label=False, ),
+                        Item(name='data_df', style='custom', show_label=False),
+                        Item(name='export_table', show_label=False, ),
+                    ),
+
+
+                       ),
+                resizable=True
 
     )
+
     def __init__(self, project):
         super(ProjectAnalysisTool, self).__init__()
         self.project = project
+        self.refresh_dataframe()
+
+    def _data_df_default(self):
+        return DFrameViewer()
+
+    def _refresh_fired(self):
+        self.refresh_dataframe()
+
+    def _export_table_fired(self):
+        tool = DataFrameExportTool(self.data_df.df)
+        tool.configure_traits()
+
+    def _groupby_fired(self):
+        self.groupby_obj = self.data_df.df.groupby(self.groupby_choice,as_index=False)
+        self.refresh_filter_list()
+
+
+    def _plot_result_fired(self):
+        kwargs = {}
+        if self.plt_kind=='hist':
+            kwargs['bins'] = self.plt_bins
+        if self.plt_matrix:
+            kwargs['diagonal'] = self.plt_kind
+            ax = scatter_matrix(self.data_df.df,**kwargs)
+        else:
+            kwargs['kind'] = self.plt_kind
+            if self.plt_kind in ["area", "hist"]:
+                kwargs['alpha'] = self.plt_alpha
+                kwargs['stacked'] = self.plt_stacked
+            kwargs['subplots'] = self.plt_subplots
+
+            ax = self.data_df.df.plot(**kwargs)
+        plt.show()
+
+    def _apply_agg_fired(self):
+        arg = self.agg_statistic
+        cols = self.result_cols[:]
+        df = getattr(self.groupby_obj, self.apply_what)(arg)
+        if arg == 'size':
+            df = df.rename('size')
+            cols.append('size')
+            #df = pd.DataFrame(df)
+            df = df.reset_index()
+        elif arg == 'describe':
+            #df = df[[x for x in cols if x!=self.groupby_choice]]
+            groupby_obj = self.data_df.df.groupby(self.groupby_choice)
+            df = getattr(groupby_obj, self.apply_what)(arg)
+            df.index.rename((self.groupby_choice, 'statistic'), inplace=True)
+            df = df.reset_index()
+            cols = [self.groupby_choice,'statistic']
+            cols.extend([x for x in self.result_cols if x != self.groupby_choice])
+            #df = df.rename(index=(self.groupby_choice, 'statistic'))
+
+        #cols = [x for x in self.result_cols if x in df.columns.values]
+
+        cols = [x for x in cols if x in list(df.columns.values.flatten())]
+
+        #cols.extend( [x for x in self.result_cols if x in df.columns.values] )
+        if len(cols):
+            df = df[cols]
+        self.data_df.df = df
+        self.groupby_obj = None
+        self.refresh_groupby_list()
+
+    def _apply_filter_fired(self):
+        arg = self.filter_statistic
+        cols = self.result_cols[:]
+        if arg == 'selected':
+            dfs = {}
+            for key in self.filter_selected:
+                dfs[key] = self.groupby_obj.get_group(key)
+            df = pd.concat(dfs)
+            # df.index.rename(self.groupby_choice,level=0,inplace=True)
+            # df = df.reset_index(level=0)
+            # self.groupby_obj = None
+            # cols = [x for x in self.result_cols if x in df.columns.values]
+        else:
+            # filter_group = self.groupby_obj[]
+            statistic = self.filter_statistic
+            if statistic != 'size':
+                statistic += '()'
+            arg = eval('lambda x: x["{}"].{} {} {}'.format(self.filter_col,
+                                                             statistic, self.filter_logic,
+                                                             self.filter_value))
+            # arg = filter_group.filter(filter)
+            df = getattr(self.groupby_obj, self.apply_what)(arg)
+            # df.index.rename(self.groupby_choice, inplace=True)
+            # cols = [x for x in self.result_cols if x in df.columns.values]
+
+        cols = [x for x in cols if x in list(df.columns.values.flatten())]
+        # cols.extend( [x for x in self.result_cols if x in df.columns.values] )
+        if len(cols):
+            df = df[cols]
+        self.data_df.df = df
+        self.groupby_obj = None
+        self.refresh_groupby_list()
+
+
+    def refresh_groupby_list(self):
+        self.groupby_list = list(self.data_df.df.columns.values.flatten())
+
+    def refresh_filter_list(self):
+        self.filter_list = sorted(self.groupby_obj.groups.keys())
+
+    def refresh_dataframe(self):
+        df = self.project.make_db_dataframe().reset_index()
+        df.columns = ['experiment', 'ex_wl', 'em_wl', 'signal', "bg", 'ref']
+        self.data_df.df = df
+        self.has_df = True
+        self.refresh_groupby_list()
+
 

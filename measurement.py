@@ -175,6 +175,9 @@ class SpectrumMeasurement(BaseMeasurement):
 
                 show_border=True, label='Emission'),
             HGroup(Item(name='show_data', show_label=False, springy=True)),
+            VGroup(
+                    Item(name='file_data', editor=ValueEditor(), show_label=False),
+                    label='File Metadata'),
             ),
 
             HGroup(
@@ -189,9 +192,7 @@ class SpectrumMeasurement(BaseMeasurement):
                 springy=True),
         label='Data'),
 
-            VGroup(
-                Item(name='file_data',editor=ValueEditor(),show_label=False),
-                    label='File Metadata'),
+
             VGroup(
                 Item(name='plotting_tool', show_label=False, style='custom', springy=False),
 
@@ -281,7 +282,7 @@ class SpectrumMeasurement(BaseMeasurement):
 
     def _show_data_fired(self):
         df = self.create_dataframe().reset_index()
-        self.all_data_array = df.as_matrix()
+        self.all_data_array = df.as_matrix(columns=['index','bg_corrected', 'signal', 'bg', 'ref'])
 
 
     def _signal_changed(self):
@@ -359,10 +360,8 @@ class SpectrumMeasurement(BaseMeasurement):
 
 
     def _get_bg_corrected(self):
-
         sig = np.copy(self.signal)
-        sig[:,1] -= np.resize(self.bg[:,1],sig[:,1].shape)
-
+        sig[:,1] -= np.resize(self.bg[:,1],sig[:,1].size)
         return sig
 
 

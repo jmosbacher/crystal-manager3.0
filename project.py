@@ -23,7 +23,7 @@ from saving import CanSaveMixin
 from compare_experiments import AllExperimentList, ExperimentComparison
 from experiment import ExperimentTableEditor, SpectrumExperiment, BaseExperiment
 from data_importing import ExpImportToolTab, AutoSpectrumImportTool
-from integration_tool import ComparisonIntegrationTool, ExperimentIntegrationTool
+from analysis_tools import ProjectAnalysisTool
 from integration_results import IntegrationResultBase
 from saving import BaseSaveHandler
 from traitsui.ui_editors.array_view_editor import ArrayViewEditor
@@ -79,6 +79,7 @@ class Project(CanSaveMixin):
     export_dataframe = Button('Export DataFrame')
 
     import_tool = Instance(ExpImportToolTab,transient=True)
+    analysis_tool = Instance(ProjectAnalysisTool,transient=True)
 
     view = View(
 
@@ -110,9 +111,15 @@ class Project(CanSaveMixin):
                 Item(name='notes', show_label=False, springy=True, editor=TextEditor(multi_line=True), style='custom'),
                 show_border=True, label='Notes'),
             label='Data'),
+
+            Group(Item(name='analysis_tool', show_label=False, style='custom'),
+                  label='Analysis'),
+
+
         Group(Item(name='import_tool',show_label=False,style='custom'),
-              label='Import Experiments')
-            ),
+              label='Import Experiments'),
+
+        ),
 
         buttons=['OK'],
         title='Project Editor',
@@ -130,6 +137,9 @@ class Project(CanSaveMixin):
 
     def _import_tool_default(self):
         return ExpImportToolTab(project=self)
+
+    def _analysis_tool_default(self):
+        return ProjectAnalysisTool(project=self)
 
     def _anytrait_changed(self,name):
 
@@ -184,7 +194,7 @@ class Project(CanSaveMixin):
         for exp in self.experiments:
             data[exp.name] = exp.make_db_dataframe()
         final = pd.concat(data)
-        final.index.rename('Experiment',level=0,inplace=True)
+        final.index.rename('experiment',level=0,inplace=True)
         return final
 
     #def _import_data_fired(self):

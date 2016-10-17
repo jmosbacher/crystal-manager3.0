@@ -2,6 +2,7 @@ import os
 from traits.api import *
 from traitsui.api import *
 from traitsui.extras.checkbox_column import CheckboxColumn
+from traitsui.ui_editors.data_frame_editor import DataFrameEditor
 import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -27,20 +28,21 @@ class DFrameViewer(HasTraits):
     def _df_changed(self,old,new):
         ArrawViewClass = type('ArrawViewClass', (HasTraits,),
                               {
-                                  'array': Array(),
+                                  'df': Instance(pd.DataFrame),
                                   'view': View(
-                                      HGroup(Item(name='array', show_label=False, style='custom', springy=True,
-                                                  editor=ArrayViewEditor(
-                                                      titles=[str(x) for x in new.columns.values],
-                                                      format='%g',
-                                                      show_index=False, )),
+                                      HGroup(Item(name='df', show_label=False, style='custom', springy=True,
+                                                  editor=DataFrameEditor(
+                                                      #titles=[str(x) for x in new.columns.values],
+                                                      #format='%g',
+                                                      show_index=False,
+                                                  )),
                                              scrollable=True),
                                       scrollable=True,
                                       resizable=True)
                               })
 
         array_view = ArrawViewClass()
-        array_view.array = new.as_matrix()
+        array_view.df = new
         self.array_view = array_view
 
 
@@ -259,3 +261,69 @@ class ProgressViewer(HasTraits):
     def _stop_fired(self):
         if not self.user_wants_stop and self.working:
             self.user_wants_stop = True
+
+
+"""
+
+class DynamicArrayViewHandler(Handler):
+    #array_titles = List(['BG corrected', 'Signal', 'Background', 'Reference'])
+    def object_refresh_view_changed(self,info):
+        if not info.initialized:
+            return
+        #if info.object.refresh_view:
+            #info.object.refresh_view = False
+            #info.object.edit_traits(parent=info.ui.parent)
+
+
+class DynamicArrayView(HasDynamicViews):
+    array = Array()
+    titles = List(['BG corrected', 'Signal', 'Background', 'Reference'])
+
+
+    ui_array = Group(Item(
+            name='array', show_label=False, style='custom',
+            editor=ArrayViewEditor(titles=[' ',],
+                                   format='%g',
+                                   show_index=False, ),
+
+        ),
+        _array_view_order = 5,
+        _array_view_priority = 1,
+
+        )
+
+
+
+
+    def __init__(self, *args, **traits ):
+        super(DynamicArrayView, self).__init__(*args, **traits)
+
+        declaration = DynamicView(
+            name='array_view',
+            id='dynamic_array_view',
+            keywords={
+
+                'dock': 'tab',
+                'resizable': True,
+                'scrollable': True,
+            },
+            use_as_default=True,
+        )
+        self.declare_dynamic_view(declaration)
+
+
+        #self.ui_array = DynamicViewSubElement()
+
+    #def _titles_changed(self):
+        #new_editor=ArrayViewEditor(titles=self.titles,
+                               #format='%g',
+                               #show_index=False, )
+
+        #ui_array = self.trait_view(name='ui_array')
+        #ui_array.editor = new_editor
+
+
+    def _array_default(self):
+        return np.asarray([[0.0,0.0,0.0,0.0]])
+
+"""
