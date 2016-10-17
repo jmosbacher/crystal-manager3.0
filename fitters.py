@@ -4,6 +4,7 @@ from traitsui.ui_editors.array_view_editor import ArrayViewEditor
 from data_plot_viewers import DataPlotEditorBase
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.colors as colors
 from data_plot_viewers import FittingDataPlot1D
 from auxilary_functions import twoD_Gaussian
 import numpy as np
@@ -197,12 +198,13 @@ class SpectrumFitter2D(SpectrumFitterBase):
         except:
             self.fit_success = False
 
-    def plot_data(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5, image=False, nlevel=50):
+    def plot_data(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5,
+                  image=False, nlevel=50, scale='log', interp_method='linear'):
         grid_x, grid_y = np.mgrid[self.xdata.min():self.xdata.max():step,
                          self.ydata.min():self.ydata.max():step]
         xy = np.empty((len(self.xdata), 2))
         xy[:,0], xy[:,1] = self.xdata, self.ydata
-        grid_z = griddata(xy, self.zdata / step, (grid_x, grid_y), method='cubic', fill_value=0.0)
+        grid_z = griddata(xy, self.zdata / step, (grid_x, grid_y), method=interp_method, fill_value=0.0)
         if figure is None:
             fig = plt.figure()
         else:
@@ -211,8 +213,19 @@ class SpectrumFitter2D(SpectrumFitterBase):
             ax = fig.add_subplot(111)
         else:
             ax = axs
-        levels = np.linspace(grid_z.min(),  grid_z.max(), nlevel)
-        contfplot = ax.contourf(grid_x, grid_y, grid_z, cmap=cm.jet, levels=levels, )
+
+        minlev, maxlev = grid_z.min(), grid_z.max()
+        if scale is 'linear':
+            levels = np.linspace(minlev,maxlev,nlevel)
+            norm = None
+        else:
+            if minlev<0.001:
+                minlev=0.001
+            lev_exp = np.linspace(np.floor(np.log10(minlev)), np.ceil(np.log10(maxlev)),nlevel)
+            levels = np.power(10, lev_exp)
+            norm=colors.LogNorm()
+        #levels = np.linspace(grid_z.min(),  grid_z.max(), nlevel,)
+        contfplot = ax.contourf(grid_x, grid_y, grid_z, cmap=cm.jet, levels=levels,norm=norm )
         #im = ax.imshow(grid_z.T, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()), origin='lower',
                         #cmap=cm.jet)
 
@@ -225,7 +238,7 @@ class SpectrumFitter2D(SpectrumFitterBase):
             fig.canvas.draw()
         return fig,ax
 
-    def plot_fit(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5, image=False, nlevel=50):
+    def plot_fit(self, title=' ', figure=None, axs=None, titlesize=12, step=0.5, image=False, nlevel=50,scale='log'):
 
         grid_x, grid_y = np.mgrid[self.xdata.min():self.xdata.max():step,
                          self.ydata.min():self.ydata.max():step]
@@ -240,8 +253,19 @@ class SpectrumFitter2D(SpectrumFitterBase):
             ax = fig.add_subplot(111)
         else:
             ax = axs
-        levels = np.linspace(grid_z.min(), grid_z.max(), nlevel)
-        contour = ax.contour(grid_x, grid_y, grid_z, levels=levels, color='k')
+        minlev, maxlev = grid_z.min(), grid_z.max()
+        if scale is 'linear':
+            levels = np.linspace(minlev, maxlev, nlevel)
+            norm = None
+        else:
+            if minlev < 0.001:
+                minlev = 0.001
+            lev_exp = np.linspace(np.floor(np.log10(minlev)), np.ceil(np.log10(maxlev)), nlevel)
+            levels = np.power(10, lev_exp)
+            norm = colors.LogNorm()
+        #levels = np.linspace(grid_z.min(), grid_z.max(), nlevel)
+        #contfplot = ax.contourf(grid_x, grid_y, grid_z, cmap=cm.jet, levels=levels, norm=norm)
+        contour = ax.contour(grid_x, grid_y, grid_z, levels=levels,colors='k')  # cmap=cm.jet, norm=norm
         if title is not ' ':
             fig.suptitle(title)
         # plt.imshow(Z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower')

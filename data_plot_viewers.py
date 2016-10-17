@@ -138,7 +138,20 @@ class FittingDataPlot1D(DataPlotEditorBase):
     range_selector = Any(transient=True) #Instance(SpanSelector)
     peaks_selector = Any(transient=True) #(SpanSelector)
     editing = Enum('Peaks',['Range','Peaks'],transient=True)
+    has_frange = Property(Bool)
+    has_peaks = Property(Bool)
 
+    def _get_has_frange(self):
+        if (self.frange[1]-self.frange[0])>10:
+            return True
+        else:
+            return False
+
+    def _get_has_peaks(self):
+        if len(self.peaks):
+            return True
+        else:
+            return False
 
     def clear_spans(self,frange=True,peaks=True):
         if frange:
@@ -234,6 +247,20 @@ class FittingDataPlot2D(DataPlotEditorBase):
     range_selector = Any(transient=True)  # Instance(SpanSelector)
     peaks_selector = Any(transient=True)  # (SpanSelector)
     editing = Enum('Peaks', ['Range', 'Peaks'])
+    has_frange = Property(Bool)
+    has_peaks = Property(Bool)
+
+    def _get_has_frange(self):
+        if (self.frangex[1]-self.frangex[0])>10 and (self.frangey[1]-self.frangey[0])>10:
+            return True
+        else:
+            return False
+
+    def _get_has_peaks(self):
+        if len(self.peaks):
+            return True
+        else:
+            return False
 
     def clear_patches(self, frange=True, peaks=True):
         if frange:
@@ -319,7 +346,7 @@ class FittingDataPlot2D(DataPlotEditorBase):
         self.range_selector = RectangleSelector(self.axs[0], self.rect_onselect,
                           drawtype='box', useblit=True,
                           button=[1, 3],  # don't use middle button
-                          minspanx=50, minspany=50,
+                          minspanx=15, minspany=15,
                           spancoords='pixels',
                           #interactive=True,
                           rectprops=dict(alpha=0.5, facecolor='g'))

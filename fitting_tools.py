@@ -35,6 +35,21 @@ class FittingToolBase(HasTraits):
     has_frange = Property(Bool)
 
 
+    def _get_has_peaks(self):
+        if self.display is None:
+            return False
+
+        else:
+            return self.display.has_peaks
+
+
+    def _get_has_frange(self):
+        if self.display is None:
+            return False
+        else:
+            return self.display.has_frange
+
+
 class FittingTool1D(FittingToolBase):
     measurements = List([])
     view = View(
@@ -133,21 +148,6 @@ class FittingTool1D(FittingToolBase):
             meas.fits = []
         self.refresh_display()
 
-    def _get_has_peaks(self):
-        if self.display is None:
-            return False
-        if len(self.display.peaks):
-            return True
-        else:
-            return False
-
-    def _get_has_frange(self):
-        if self.display is None:
-            return False
-        if (self.display.frange[1]-self.display.frange[0])>10:
-            return True
-        else:
-            return False
 
     def get_fits_list(self):
         def keyf(data):
@@ -196,23 +196,36 @@ class FittingTool1D(FittingToolBase):
 class FittingTool2D(FittingToolBase):
 
     experiment = Any()
+
+    interp_method = Enum('linear', ['cubic', 'linear', 'nearest'])
+    nlevel = Int(70)
+    set_levels = Enum('log',['linear', 'log'])
+    level_range = Tuple((1e0, 1e5), cols=2, labels=['min', 'max'])
+
     view = View(
         VGroup(
             VGroup(
 
                 HGroup(
-                    Item(name='editing', style='custom', label='Edit', ),
+                    Item(name='refresh', show_label=False),
                     Item(name='clear', show_label=False, ),
                     Item(name='clear_fits', show_label=False, ),
-                    Item(name='refresh', show_label=False),
-                    Item(name='message', style='readonly', show_label=False, springy=True),
+
                     spring,
-                    Item(name='perform_fit', show_label=False, ),
+                    ),
+                HGroup(Item(name='interp_method', label='Interpolation Method', ),
+                       Item(name='nlevel', label='Contour Levels', ),
+                       Item(name='set_levels', label='Scale', ),
+                       #Item(name='level_range', style='custom', label='Range', ),
+                       spring,
 
-                    show_border=True, label='Region Selection'
-                ),
-
-                Group(Item(name='display', style='custom', show_label=False),
+                       ),
+                VGroup(
+                    HGroup(Item(name='editing', style='custom', label='Edit', ),
+                           Item(name='perform_fit', show_label=False, ),
+                           Item(name='message', style='readonly', show_label=False, springy=True),
+                           spring,),
+                    Item(name='display', style='custom', show_label=False),
                       show_border=True, label='Plots'),
 
             ),
@@ -243,6 +256,9 @@ class FittingTool2D(FittingToolBase):
         self.name = kwargs.get('name','Fitting Plots')
         self.experiment = experiment
         #self.refresh_display()
+
+    def _interp_method_changed(self):
+        self.experiment.has_mesh = False
 
     def _display_default(self):
         return FittingDataPlot2D()
@@ -291,7 +307,7 @@ class FittingTool2D(FittingToolBase):
             if fitter.nexp>1:
                 p = fitter.p.reshape(fitter.nexp,6)
             else:
-                p = np.ravel(fitter.p)
+                p = np.asarray([fitter.p.ravel()])
             self.experiment.fit_results = p
             self.fits_list = p
             self.fit_result = fitter.result_object()
@@ -314,7 +330,8 @@ class FittingTool2D(FittingToolBase):
     def _get_has_frange(self):
         if self.display is None:
             return False
-        if (self.display.frangex[1]-self.display.frangex[0])>50 and (self.display.frangey[1]-self.display.frangey[0])>50 :
+        if abs(np.diff(self.display.frangex))>50\
+                and abs(np.diff(self.display.frangey))>50 :
             return True
         else:
             return False
@@ -341,17 +358,30 @@ class FittingTool2D(FittingToolBase):
         if len(self.display.axs):
             self.experiment.plot_2d_contour(figure=self.display.figure,
                                             axs=self.display.axs[0],
-                                            nlevel = 20,
-                                            setlabels=False)
+                                            setlabels=False,
+                                            colbar=False,
+                                            nlevel = self.nlevel,
+                                            #bin = self.bin,
+                                            #nbins = self.nbins,
+                                            interp_method = self.interp_method,
+                                            set_levels = self.set_levels,
+                                            #level_range = self.level_range
+                                            )
+
+
         if np.any(self.fits_list):
             fitter = SpectrumFitter2D() #self.fitter
             fitter.peaks = [[]]*(self.fits_list.size/6)
             fitter.xdata, fitter.ydata, fitter.zdata = self.experiment.collect_XYZ_arrays()
             fitter.p = self.fits_list.ravel()
             fitter.plot_data(figure=self.display.figure,
-                                axs=self.display.axs[1],)
+                                axs=self.display.axs[1],
+                             nlevel=self.nlevel,
+                             interp_method=self.interp_method,)
             fitter.plot_fit(figure=self.display.figure,
-                                axs=self.display.axs[1],)
+                                axs=self.display.axs[1],
+                            nlevel=self.nlevel,
+                           )
 
 
         self.set_titles()

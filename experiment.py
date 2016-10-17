@@ -661,7 +661,6 @@ class SpectrumExperiment(BaseExperiment):
             fig = plt.figure()
         else:
             fig = figure
-
         if axs is None:
             fig.clf()
             ax = fig.add_subplot(111)
