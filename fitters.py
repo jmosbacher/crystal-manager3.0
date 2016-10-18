@@ -242,9 +242,9 @@ class SpectrumFitter2D(SpectrumFitterBase):
 
         grid_x, grid_y = np.mgrid[self.xdata.min():self.xdata.max():step,
                          self.ydata.min():self.ydata.max():step]
-        xy = np.empty((len(self.xdata), 2))
-        xy[:, 0], xy[:, 1] = self.xdata, self.ydata
-        grid_z = griddata(xy, self.fit_f / step, (grid_x, grid_y), method='cubic', fill_value=0.0)
+        #xy = np.empty((len(self.xdata), 2))
+        #xy[:, 0], xy[:, 1] = self.xdata, self.ydata
+        grid_z =  self.fit_fcn((grid_x, grid_y),self.p).reshape(grid_x.shape) #griddata(xy, self.fit_f / step, (grid_x, grid_y), method='cubic', fill_value=0.0)
         if figure is None:
             fig = plt.figure()
         else:
