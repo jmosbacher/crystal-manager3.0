@@ -319,23 +319,6 @@ class FittingTool2D(FittingToolBase):
         self.fits_list = np.asarray([[0.0]*6])
         self.refresh_display()
 
-    def _get_has_peaks(self):
-        if self.display is None:
-            return False
-        if len(self.display.peaks):
-            return True
-        else:
-            return False
-
-    def _get_has_frange(self):
-        if self.display is None:
-            return False
-        if abs(np.diff(self.display.frangex))>30\
-                and abs(np.diff(self.display.frangey))>30 :
-            return True
-        else:
-            return False
-
     def get_fits_list(self):
         if len(self.experiment.fit_results):
             return list(self.experiment.fit_results)
