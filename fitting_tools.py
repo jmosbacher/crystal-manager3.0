@@ -330,8 +330,8 @@ class FittingTool2D(FittingToolBase):
     def _get_has_frange(self):
         if self.display is None:
             return False
-        if abs(np.diff(self.display.frangex))>50\
-                and abs(np.diff(self.display.frangey))>50 :
+        if abs(np.diff(self.display.frangex))>30\
+                and abs(np.diff(self.display.frangey))>30 :
             return True
         else:
             return False
