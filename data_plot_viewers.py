@@ -42,7 +42,7 @@ class DataPlotEditorBase(HasTraits):
         self.add_subplots(self.nplots)
 
     def remove_subplots(self):
-        self.figure.clf()
+        self.figure.clf(keep_observers=True)
         self.axs = []
         #self.display.figure.canvas.draw()
 
@@ -71,7 +71,7 @@ class DataPlotEditorBase(HasTraits):
 
     def clear_plots(self):
         for ax in self.axs:
-            ax.cla()
+            ax.cla(keep_observers=True)
         self.figure.canvas.draw()
 
     def set_title(self, title=' ', size=13,y=0.98):

@@ -104,22 +104,7 @@ def read_ascii_file(path, file_del):
         return np.array(data), sup
     return None
 
-def organize_file_paths(paths,tags=('sig','bgd','ref'), ext='asc'):
-    organized = {}
-    for path in paths:
-        folder, name = os.path.split(os.path.abspath(path))
-        if name.split('.',1)[-1] != ext:
-            continue
-        if folder not in organized.keys():
-            organized[folder] = {}
-        for tag in tags:
-            if tag in name:
-                striped = name.replace('_'+tag, '').replace('.'+ext, '')
-                if striped not in organized[folder].keys():
-                    organized[folder][striped] = dict(zip(tags,[None]*len(tags)))
-                organized[folder][striped][tag] = name
 
-    return organized
 
 def organize_data(in_data,tags=('sig','bgd','ref'), ext='.asc'):
     '''

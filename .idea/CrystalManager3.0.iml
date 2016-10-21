@@ -6,5 +6,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="Examples" />
     <orderEntry type="module" module-name="Tests" />
+    <orderEntry type="module" module-name="CrystalManager4.0" />
   </component>
 </module>
