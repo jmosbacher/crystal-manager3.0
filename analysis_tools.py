@@ -417,6 +417,7 @@ class ProjectAnalysisTool(HasTraits):
     export_table = Button('Export Table')
 
     data_df = Instance(DFrameViewer)
+
     view = View(HGroup(
                     VGroup(
                         VGroup(
@@ -490,10 +491,13 @@ class ProjectAnalysisTool(HasTraits):
     def __init__(self, project):
         super(ProjectAnalysisTool, self).__init__()
         self.project = project
-        self.refresh_dataframe()
+        #self.refresh_dataframe()
 
     def _data_df_default(self):
-        return DFrameViewer()
+        df = pd.DataFrame(data=[[0.0]*6],columns=['experiment', 'ex_wl', 'em_wl', 'signal', 'bg', 'ref'])
+        data_df = DFrameViewer()
+        data_df.df = df
+        return data_df
 
     def _refresh_fired(self):
         self.refresh_dataframe()

@@ -331,7 +331,7 @@ class FittingTool2D(FittingToolBase):
     def _clear_fired(self):
         self.display.clear_selections()
         self.display.draw_patches()
-        #self.refresh_display()
+        self.refresh_display()
         self.display.configure_selector(peaks=True)
 
     def refresh_display(self):

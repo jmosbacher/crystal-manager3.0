@@ -266,6 +266,7 @@ class FittingDataPlot2D(DataPlotEditorBase):
         if frange:
             try:
                 self.range_rect.remove()
+                self.range_rect = None
             except:
                 pass
 
@@ -273,13 +274,15 @@ class FittingDataPlot2D(DataPlotEditorBase):
             for ellipse in self.peaks_ellipses:
                 try:
                     ellipse.remove()
+                    self.peaks_ellipses.remove(ellipse)
                 except:
                     pass
 
     def clear_selections(self):
-        self.clear_patches(frange=True, peaks=False)
+        self.clear_patches()
         self.peaks = []
-        # self.frange = (0.0,0.0)
+        self.frangex = (0.0,0.0)
+        self.frangey = (0.0, 0.0)
 
     def draw_patches(self, frange=True, peaks=True):
         if all([frange, len(self.axs), len(self.frangex), len(self.frangey)]):
