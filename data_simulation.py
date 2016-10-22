@@ -71,7 +71,7 @@ class MeasurementSimulator(HasTraits):
 class ExperimentSimulator(HasTraits):
     project = Any()
     ex_range = Tuple((250,750), cols=2)
-    em_res = Float(10)
+    ex_res = Float(10)
     em_max = Float(1050)
     em_res = Float(0.075)
 
