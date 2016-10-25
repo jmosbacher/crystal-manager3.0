@@ -20,6 +20,7 @@ import pandas as pd
 from measurement import BaseMeasurement, SpectrumMeasurement, MeasurementTableEditor, ArrayViewer
 from integration_results import IntegrationResultBase
 from data_importing import SpectrumImportToolTab
+from import_tools import ImportToolBase
 from data_plot_viewers import SingleDataPlot
 from plotting_tools import ExperimentPlottingTool
 from integration_tool import ExperimentIntegrationTool
@@ -67,7 +68,7 @@ class BaseExperiment(HasTraits):
 
 
 class SpectrumExperiment(BaseExperiment):
-    __kind__ = 'Spectrum'
+    __klass__ = 'Spectrum'
     #####       Data      #####
 
     ex_wl_range = Property(Tuple)
@@ -112,7 +113,7 @@ class SpectrumExperiment(BaseExperiment):
     has_measurements = Property()
 
     #####       GUI View     #####
-    import_tool = Instance(SpectrumImportToolTab,transient=True)
+    import_tool = Instance(ImportToolBase,transient=True)
     plotting_tool = Instance(ExperimentPlottingTool,transient=True)
     analysis_tool = Instance(ExperimentAnalysisTool,transient=True)
     integration_tool = Instance(ExperimentIntegrationTool,transient=True)
@@ -199,7 +200,7 @@ class SpectrumExperiment(BaseExperiment):
         return SpectrumMeasurement(main=self.main)
 
     def _import_tool_default(self):
-        return SpectrumImportToolTab(experiment=self)
+        return ImportToolBase(self)
 
     def _plotting_tool_default(self):
         return ExperimentPlottingTool(experiment=self)
@@ -226,7 +227,7 @@ class SpectrumExperiment(BaseExperiment):
     def _get_ex_wl_range(self):
         wls = [10000, 0]
         for exp in self.measurements:
-            if exp.__kind__ == 'Spectrum':
+            if exp.__klass__ == 'Spectrum':
                 wls[0] = round(min(exp.ex_wl, wls[0]))
                 wls[1] = round(max(exp.ex_wl, wls[1]))
         return tuple(wls)
@@ -234,7 +235,7 @@ class SpectrumExperiment(BaseExperiment):
     def _get_em_wl_range(self):
         wls = [10000, 0]
         for meas in self.measurements:
-            if meas.__kind__ == 'Spectrum':
+            if meas.__klass__ == 'Spectrum':
                 wls[0] = round(min(meas.em_wl[0], wls[0]))
                 wls[1] = round(max(meas.em_wl[1], wls[1]))
         return tuple(wls)

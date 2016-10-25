@@ -105,7 +105,7 @@ class BaseMeasurement(HasTraits):
 
 
 class SpectrumMeasurement(BaseMeasurement):
-    __kind__ = 'Spectrum'
+    __klass__ = 'Spectrum'
 
     #####       User Input      #####
     duration = Float(0)

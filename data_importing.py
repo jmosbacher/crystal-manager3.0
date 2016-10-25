@@ -14,17 +14,147 @@ import random
 import pandas as pd
 from file_selector import FileSelectionTool, FolderSelectionTool, SelectionToolBase
 from viewers import OutputStream
+from log_viewer import LogStream
 from measurement import SpectrumMeasurement, BaseMeasurement
-from auxilary_functions import color_map, wl_to_rgb, organize_data, read_ascii_file,import_group, import_folder
+from auxilary_functions import color_map, wl_to_rgb
 #from crystal import Crystal
 from pyface.api import confirm, error, YES, CANCEL
 from datetime import datetime
 from threading import Thread
 from time import sleep
+import logging
 try:
     import cPickle as pickle
 except:
     import pickle
+
+
+def read_ascii_file(path, file_del):
+    logger = logging.getLogger(__name__)
+    data = []
+    sup = []
+    with open(path, 'r') as f:
+        sig = True
+        for line in f:
+            if line in ['\n', '\r\n']:
+                sig = False
+                continue
+            if sig:
+                data.append(np.fromstring(line,count=2, sep=file_del))
+                #s = line.split(file_del)
+                #data.append([eval(s[0]), eval(s[1])])
+
+            else:
+                sup.append(line)
+    if len(data):
+        return np.array(data), sup
+    return None
+
+
+
+def organize_data(in_data,tags=('sig','bgd','ref'), ext='.asc'):
+    '''
+    :param data: Dictionary {file name: data array}
+    :param tags: text tags to organize by
+    :param ext: text file name extension to ignore
+    :return: Dictionarey {Name: {signal:array, bg:array, ref:array}
+    '''
+    logger = logging.getLogger(__name__)
+    out = {}
+    for name, data in in_data.items():
+        for tag in tags:
+            if tag in name:
+                if name.replace('_' + tag,'').replace(ext, '') in out.keys():
+                    out[name.replace('_' + tag,'').replace(ext, '')][tag] = data
+                else:
+                    out[name.replace('_' + tag, '').replace(ext, '')] = {tag:data}
+    return out
+
+def import_group(path, names,**kwargs):
+    logger = logging.getLogger(__name__)
+    delimiter = kwargs.get('delimiter', ' ')
+    tool = kwargs.get('tool', None)
+
+    dir_path = path
+    data = {}
+    for name in names:
+        path = os.path.join(dir_path, name)
+        if os.path.isfile(path):
+            logger.info('Reading data from file at:\n %s' % path)
+            result = read_ascii_file(path, delimiter)
+            if result is not None:
+                data[name] = result
+            logger.info('File Read.')
+            logger.info('Skipping (not a file): \n%s' % path)
+
+    logger.info('Organizing Data.')
+    organized = organize_data(data)
+    logger.info('%d Files successfully imported.' %len(data.keys()))
+
+    if tool is not None:
+        tool.result = organized
+        tool.done = True
+    else:
+        return organized
+
+def import_folder(path, **kwargs):
+    logger = logging.getLogger(__name__)
+    delimiter = kwargs.get('delimiter',' ')
+    log = kwargs.get('log',None)
+    tool = kwargs.get('tool',None)
+    result_name = kwargs.get('result_name',None)
+    if not os.path.isdir(path):
+        logger.info('Cannot find folder:\n%s.' % path)
+        return False
+
+    names = os.listdir(path)
+    files = []
+
+    logger.info('Searching for files in:\n%s.' %path)
+    for name in names:
+        if os.path.isfile(os.path.join(path,name)):
+            files.append(name)
+
+    logger.info('Files found: %d' %len(files))
+    #org_data = import_group(path,files,delimiter=delimiter,log=log)
+    dir_path = path
+    data = {}
+    for name in files:
+        path = os.path.join(dir_path, name)
+        if os.path.isfile(path):
+
+            logger.info('Reading data from file at:\n %s' % path)
+            result = read_ascii_file(path, delimiter)
+            if result is not None:
+                data[name] = result
+                logger.info('File read succesfully.')
+            else:
+                logger.info('File import unsuccesfull.')
+
+            logger.info('Skipping (not a file): \n%s' % path)
+
+    logger.info('Organizing Data.')
+    organized = organize_data(data)
+
+    logger.info('Done. Files successfully imported: %d' % len(data.keys()))
+    logger.info('Storing Data...')
+
+    if tool is not None:
+        #print('Tool is not None' , file=log)
+        if result_name is None:
+            #print('Result name is None', file=log)
+            tool.result = organized
+            tool.done = True
+        else:
+            #print('Result name is not None', file=log)
+            tool.result[result_name] = organized
+            tool.done = True
+    else:
+        return organized
+    if log is not None:
+        logger.info('Finished importing files.')
+        sleep(0.5)
+    return True
 
 
 class AutoImportToolHandler(Handler):
@@ -55,7 +185,7 @@ class AutoImportToolHandler(Handler):
 
 
 class AutoImportToolBase(HasTraits):
-    log = Instance(OutputStream)
+    log = Instance(LogStream)
     clear_log = Button('Clear Log')
     experiment = Any() #Instance(Crystal)
     selector = Instance(SelectionToolBase)
@@ -97,7 +227,9 @@ class AutoImportToolBase(HasTraits):
         raise NotImplementedError
 
     def _log_default(self):
-        return None
+        log = LogStream()
+        log.config_logger(name=__name__, level='DEBUG')
+        return log
 
     def _selector_default(self):
         raise NotImplementedError
@@ -107,6 +239,7 @@ class AutoImportToolBase(HasTraits):
 
     def import_data(self, group):
         raise NotImplementedError
+
     def _clear_log_fired(self):
         self.log.text = ''
 
@@ -214,9 +347,6 @@ class SpectrumImportToolTab(AutoSpectrumImportTool):
 
     )
 
-    def _log_default(self):
-        return OutputStream()
-
     def _import_selected_fired(self):
         self.import_data(self.selector.selected)
 
@@ -255,7 +385,7 @@ class AutoExperimentImportTool(AutoImportToolBase):
 
     def store_data(self,all_data):
         for f_name, org_data in all_data.items():
-            experiment = self.project.add_new_experiment()
+            experiment = self.project.add_experiment()
             sleep(0.2)
             experiment.name = f_name
             experiment.crystal_name = '_'.join(f_name.split('_')[1:3])
@@ -294,10 +424,10 @@ class ExpImportToolTab(AutoExperimentImportTool):
 
     )
 
-    def _log_default(self):
-        return OutputStream()
+
 
     def _import_selected_fired(self):
+
         self.import_data(self.selector.selected)
         #self.store_data(org_data)
 

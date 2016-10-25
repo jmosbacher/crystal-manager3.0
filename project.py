@@ -23,6 +23,7 @@ from saving import CanSaveMixin
 from compare_experiments import AllExperimentList, ExperimentComparison
 from experiment import ExperimentTableEditor, SpectrumExperiment, BaseExperiment
 from data_importing import ExpImportToolTab, AutoSpectrumImportTool
+from import_tools import ImportToolBase
 from analysis_tools import ProjectAnalysisTool
 from integration_results import IntegrationResultBase
 from saving import BaseSaveHandler
@@ -47,6 +48,7 @@ class ProjectHandler(BaseSaveHandler):
 
 
 class Project(CanSaveMixin):
+    __klass__ = 'Project'
     main = Any()
     name = Str('New Project')
     notes = Str()
@@ -78,7 +80,7 @@ class Project(CanSaveMixin):
 
     export_dataframe = Button('Export DataFrame')
 
-    import_tool = Instance(ExpImportToolTab,transient=True)
+    import_tool = Instance(ImportToolBase,transient=True)
     analysis_tool = Instance(ProjectAnalysisTool,transient=True)
 
     view = View(
@@ -136,7 +138,7 @@ class Project(CanSaveMixin):
         self.main = kargs.get('main',None)
 
     def _import_tool_default(self):
-        return ExpImportToolTab(project=self)
+        return ImportToolBase(self)
 
     def _analysis_tool_default(self):
         return ProjectAnalysisTool(project=self)
@@ -181,13 +183,13 @@ class Project(CanSaveMixin):
         if self.selected is not None:
             self.experiments.remove(self.selected)
 
-    def add_new_experiment(self):
+    def add_experiment(self):
         new = SpectrumExperiment(main=self.main)
         self.experiments.append(new)
         return new
 
     def _add_new_fired(self):
-        self.add_new_experiment()
+        self.add_experiment()
 
     def make_db_dataframe(self,**kwargs):
         data = {}

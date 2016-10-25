@@ -95,7 +95,7 @@ class Test(HasTraits):
         for n, project in enumerate(projects):
             project.name = 'Project '+str(n)
             for name in ['Exp 1', 'Exp 2', 'Exp 3']:
-                exp = project.add_new_experiment()
+                exp = project.add_experiment()
                 exp.name = name
                 for namee in ['Meas 1', 'Meas 2', 'Meas 3']:
                     meas = exp.add_measurement()
