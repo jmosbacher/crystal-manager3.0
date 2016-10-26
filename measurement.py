@@ -127,7 +127,8 @@ class SpectrumMeasurement(BaseMeasurement):
     file_data = Dict()
 
     simulation_data = Dict()
-
+    data = Instance(pd.DataFrame)
+    metadata = Dict()
     #####       Flags      #####
     is_simulated = Bool(False)
     has_signal = Property(Bool) #Bool(False)
@@ -213,7 +214,13 @@ class SpectrumMeasurement(BaseMeasurement):
 
     #####       Initialzation Methods      #####
 
+    def _data_changed(self):
+        self.signal = self.data[['ex_wl','sig']].as_matrix()
+        self.bg = self.data[['ex_wl','bgd']].as_matrix()
+        self.ref = self.data[['ex_wl','ref']].as_matrix()
 
+    def _metadata_changed(self):
+        self.file_data = self.metadata
     def _signal_default(self):
         return np.array([])
 
