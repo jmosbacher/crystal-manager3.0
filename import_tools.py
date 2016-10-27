@@ -313,6 +313,9 @@ class DataImporter(HasTraits):
                 datasets = pd.merge_asof(datasets, new, on='em_wl')
 
         new_meas.data = datasets
+        new_meas.file_data = new_meas.metadata
+        new_meas.make_data_arrays()
+
         return True
         #logger.debug(datasets.head())
 
