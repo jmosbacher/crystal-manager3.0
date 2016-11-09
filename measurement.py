@@ -292,7 +292,7 @@ class SpectrumMeasurement(BaseMeasurement):
 
 
     def _signal_changed(self):
-        if self.signal.shape[1] > 1:
+        if self.signal.size > 2:
             self.em_wl = (np.round(np.min(self.signal[:, 0])), np.round(np.max(self.signal[:, 0])))
 
 

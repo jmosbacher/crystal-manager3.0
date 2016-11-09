@@ -501,7 +501,7 @@ class SpectrumExperiment(BaseExperiment):
 
             grid_x, grid_y = np.mgrid[ex_min:ex_max:step, em_min:em_max:step]
 
-            grid_z = np.clip(griddata(exem, cnts/step, (grid_x, grid_y), method=interp_method,fill_value=0.0),0,np.inf)
+            grid_z = np.clip(griddata(exem, cnts/step, (grid_x, grid_y), method=interp_method,fill_value=0.0),1,np.inf)
             self.meshgrid = grid_x, grid_y, grid_z
             self.has_mesh = True
 

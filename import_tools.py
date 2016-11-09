@@ -237,6 +237,7 @@ class DataImporter(HasTraits):
                 continue
             if folder not in results_dict.keys():
                 results_dict[folder] = {}
+
             for tag in tags:
                 if tag in name:
                     striped_name = name.replace('_' + tag, '').replace('.' + ext, '')
@@ -375,7 +376,7 @@ class ImportTab(HasTraits):
         super(ImportTab,self).__init__()
         self.destination = destination
 
-
+    @property_depends_on('path_list[]', settable=False)
     def _get_ntodo(self):
         return len(self.path_list)
 
