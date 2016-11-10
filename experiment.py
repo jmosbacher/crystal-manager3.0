@@ -382,15 +382,14 @@ class SpectrumExperiment(BaseExperiment):
             fig = figure
             fig.clf()
         for meas in self.measurements:
-            if meas.__kind__ == kind:
-                if selected_only and not meas.is_selected:
-                    continue
-                for n,data in enumerate(data_names):
-                    args['ax'] = fig.add_subplot(len(data_names),1,n+1, axisbg='#F4EAEA')
-                    args['data'] = data
-                    args['legend'] = legend
-                    args['title'] = data
-                    meas.plot_data(**args)
+            if selected_only and not meas.is_selected:
+                continue
+            for n,data in enumerate(data_names):
+                args['ax'] = fig.add_subplot(len(data_names),1,n+1, axisbg='#F4EAEA')
+                args['data'] = data
+                args['legend'] = legend
+                args['title'] = data
+                meas.plot_data(**args)
 
         if figure is None:
             plt.title(title)
