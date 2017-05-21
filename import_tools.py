@@ -207,8 +207,9 @@ class DataImporter(HasTraits):
                 if sig:
                     data.append(np.fromstring(line, count=2, sep=delim))
                 else:
-                    key, value = line.split(':', 1)
-                    metadata[key.strip()] = value.strip()
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        metadata[key.strip()] = value.strip()
         if data:
             return np.array(data), metadata
         else:

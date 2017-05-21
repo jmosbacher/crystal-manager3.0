@@ -251,7 +251,7 @@ class FittingTool2D(FittingToolBase):
         height=800,
         width=1200,
     )
-    def __init__(self,experiment,**kwargs):
+    def __init__(self,experiment=None,**kwargs):
         super(FittingTool2D, self).__init__()
         self.name = kwargs.get('name','Fitting Plots')
         self.experiment = experiment
@@ -382,3 +382,6 @@ class FittingTool2D(FittingToolBase):
             #self.display.axs[0].set_ylabel('Emission Wavelength')
             #self.display.axs[1].set_ylabel('')
 
+if __name__ == '__main__':
+    app = FittingTool2D()
+    app.configure_traits()

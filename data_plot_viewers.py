@@ -24,7 +24,7 @@ class DataPlotEditorBase(HasTraits):
                      show_label=False,
                      height=400,
                      width=400,
-
+                     style='custom',
                      springy=True),
                 handler=MPLInitHandler,
                 resizable=True,

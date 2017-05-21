@@ -7,6 +7,6 @@
     <orderEntry type="module" module-name="Examples" />
     <orderEntry type="module" module-name="Tests" />
     <orderEntry type="module" module-name="CrystalManager4.0" />
-    <orderEntry type="module" module-name="SRM" />
+    <orderEntry type="module" module-name="SNR_Calculator" />
   </component>
 </module>

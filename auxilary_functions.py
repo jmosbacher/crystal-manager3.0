@@ -81,7 +81,7 @@ def merge_experiments(col1,col2):
     :param col2:
     :return:
     """
-    col1.measurements.extend(col2.experiments)
+    col1.measurements.extend(col2.measurements)
     return col1
 
 def read_ascii_file(path, file_del):

@@ -5,7 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/CrystalManager3.0.iml" filepath="$PROJECT_DIR$/.idea/CrystalManager3.0.iml" />
       <module fileurl="file://$PROJECT_DIR$/../CrystalManager4.0/.idea/CrystalManager4.0.iml" filepath="$PROJECT_DIR$/../CrystalManager4.0/.idea/CrystalManager4.0.iml" />
       <module fileurl="file://$PROJECT_DIR$/../Examples/.idea/Examples.iml" filepath="$PROJECT_DIR$/../Examples/.idea/Examples.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../SRM/.idea/SRM.iml" filepath="$PROJECT_DIR$/../SRM/.idea/SRM.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../SNR_Calculator/.idea/SNR_Calculator.iml" filepath="$PROJECT_DIR$/../SNR_Calculator/.idea/SNR_Calculator.iml" />
       <module fileurl="file://$PROJECT_DIR$/../Tests/.idea/Tests.iml" filepath="$PROJECT_DIR$/../Tests/.idea/Tests.iml" />
     </modules>
   </component>

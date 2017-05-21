@@ -275,6 +275,7 @@ class SpectrumMeasurement(BaseMeasurement):
             return True
         else:
             return False
+
     def _get_has_fits(self):
         if len(self.fits):
             return True

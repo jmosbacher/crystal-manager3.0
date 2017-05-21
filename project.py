@@ -26,6 +26,7 @@ from data_importing import ExpImportToolTab, AutoSpectrumImportTool
 from import_tools import ImportToolBase
 from analysis_tools import ProjectAnalysisTool
 from integration_results import IntegrationResultBase
+from plotting_tools import ProjectPlottingTool
 from saving import BaseSaveHandler
 from traitsui.ui_editors.array_view_editor import ArrayViewEditor
 from pyface.api import FileDialog, confirm, error, YES, CANCEL
@@ -82,6 +83,7 @@ class Project(CanSaveMixin):
 
     import_tool = Instance(ImportToolBase,transient=True)
     analysis_tool = Instance(ProjectAnalysisTool,transient=True)
+    plotting_tool = Instance(ProjectPlottingTool)
 
     view = View(
 
@@ -114,6 +116,8 @@ class Project(CanSaveMixin):
                 show_border=True, label='Notes'),
             label='Data'),
 
+            Group(Item(name='plotting_tool', show_label=False, style='custom'),
+                  label='Visualization'),
             Group(Item(name='analysis_tool', show_label=False, style='custom'),
                   label='Analysis'),
 
@@ -139,6 +143,9 @@ class Project(CanSaveMixin):
 
     def _import_tool_default(self):
         return ImportToolBase(self)
+
+    def _plotting_tool_default(self):
+        return ProjectPlottingTool(self)
 
     def _analysis_tool_default(self):
         return ProjectAnalysisTool(project=self)

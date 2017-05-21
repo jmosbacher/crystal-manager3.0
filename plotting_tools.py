@@ -104,10 +104,15 @@ class ExperimentPlottingTool(PlottingToolBase):
     interp_method = Enum('linear',['cubic','linear','nearest'])
     stride = Tuple((2,2),cols=2,labels=['rows','cols'])
     nlevel = Int(10)
-    set_levels = Enum(['linear','log'])
+    set_levels = Enum('log',['linear','log'])
     level_range = Tuple((1e0, 1e5),cols=2,labels=['min','max'])
     colbar = Bool(True)
     selected_only = Bool(False)
+    contlabels = Bool(True)
+    contf = Bool(True)
+    label_every = Int(2)
+    cmap = Enum('jet',
+                ['jet','gist_earth','terrain','ocean','gnuplot','gnuplot2','viridis','inferno','plasma','magma'])
 
     view = View(
 
@@ -131,6 +136,12 @@ class ExperimentPlottingTool(PlottingToolBase):
                          visible_when="plot_select in ['2D Contours','2D Mixed']"),
                     Item(name='stride', label='Stride', visible_when="plot_select in ['2D Mixed','3D Mixed','3D Wires','3D Surface']"),
                    ),
+            HGroup(Item(name='contlabels', label='Add labels', visible_when="plot_select in ['2D Contours']"),
+                   Item(name='contf', label='Fill', visible_when="plot_select in ['2D Contours']"),
+                   Item(name='label_every', label='Label every', visible_when="plot_select in ['2D Contours']"),
+                   Item(name='cmap', label='Colormap',
+                        visible_when="plot_select in ['2D Contours','2D Mixed', '2D Image']"),
+                   ),
             HGroup(
                 Item(name='bin', label='Bin Data'),
                 Item(name='nbins', label='Bins', enabled_when='bin' ),
@@ -140,7 +151,7 @@ class ExperimentPlottingTool(PlottingToolBase):
                                                             ('signal', 'Signal'), ('bg', 'Background'),
                                                             ('ref', 'Reference')])),
             ),
-            Item(name='display', show_label=False, style='custom', springy=True),
+            Item(name='display', show_label=False,style='custom', springy=True),
             show_border=True, label='Visualization'),
 
             )
@@ -155,6 +166,7 @@ class ExperimentPlottingTool(PlottingToolBase):
 
     def _clear_plot_fired(self):
         self.display.remove_subplots()
+
 
     def _plot_fired(self):
         matplotlib.rcParams['savefig.transparent'] = True
@@ -177,6 +189,10 @@ class ExperimentPlottingTool(PlottingToolBase):
             rstride=self.stride[0],
             cstride=self.stride[1],
             set_levels=self.set_levels,
+            contf=self.contf,
+            contlabels=self.contlabels,
+            label_every=self.label_every,
+            cmap=self.cmap,
             )
 
         if self.level_range[1]-self.level_range[0]>10:
@@ -192,5 +208,138 @@ class ExperimentPlottingTool(PlottingToolBase):
 
         '3D Polygons': self.experiment.plot_3d_polygons,
         }[self.plot_select](**kwargs)
+
+
+
+class ProjectPlottingTool(PlottingToolBase):
+
+    project = Any()
+    displays = List(SingleDataPlot)
+
+    plot_data_names = List(['bg_corrected']) #values = [('bg_corrected','BG Corrected'),(,'Signal'), (,'Background'), (,'Reference')]
+    plot_select = Enum('3D Mixed', ['3D Mixed', '3D Surface', '3D Wires',
+                                 '3D Polygons', '2D Contours','2D Mixed', '2D Image', '1D Lines'])
+    interp_method = Enum('linear',['cubic','linear','nearest'])
+    stride = Tuple((2,2),cols=2,labels=['rows','cols'])
+    nlevel = Int(10)
+    set_levels = Enum('log',['linear','log'])
+    level_range = Tuple((1e0, 1e5),cols=2,labels=['min','max'])
+    colbar = Bool(True)
+    selected_only = Bool(False)
+    contlabels = Bool(True)
+    contf = Bool(True)
+    label_every = Int(2)
+    cmap = Enum('jet',
+                ['jet','gist_earth','terrain','ocean','gnuplot',
+                 'gnuplot2','viridis','inferno','plasma','magma'])
+
+    view = View(
+
+        VGroup(
+            HGroup(
+                Item(name='plot_select', label='Plot Type'),
+                Item(name='plot', show_label=False, ),
+                Item(name='clear_plot', show_label=False, ),
+
+                Item(name='new_window', label='Plot in new window'),
+                Item(name='selected_only', label='Plot Selected Only',enabled_when='plot_select=="1D Lines"'),
+                Item(name='interp_method', label='Interpolation', enabled_when='plot_select!="1D Lines"'),
+            ),
+
+
+            HGroup(Item(name='nlevel', label='Levels', visible_when="plot_select in ['2D Contours','2D Mixed']"),
+                    Item(name='colbar', label='Color Bar', visible_when="plot_select in ['2D Contours']"),
+                    Item(name='set_levels', label='Set Levels',
+                         visible_when="plot_select in ['2D Contours','2D Mixed']"),
+                    Item(name='level_range', show_label=False,style='custom',
+                         visible_when="plot_select in ['2D Contours','2D Mixed']"),
+                    Item(name='stride', label='Stride', visible_when="plot_select in ['2D Mixed','3D Mixed','3D Wires','3D Surface']"),
+                   ),
+            HGroup(Item(name='contlabels', label='Add labels', visible_when="plot_select in ['2D Contours']"),
+                   Item(name='contf', label='Fill', visible_when="plot_select in ['2D Contours']"),
+                   Item(name='label_every', label='Label every', visible_when="plot_select in ['2D Contours']"),
+                   Item(name='cmap', label='Colormap',
+                        visible_when="plot_select in ['2D Contours','2D Mixed', '2D Image']"),
+                   ),
+            HGroup(
+                Item(name='bin', label='Bin Data'),
+                Item(name='nbins', label='Bins', enabled_when='bin' ),
+                Item(name='round_wl', label='Round WLs'),
+                Item(name='plot_data_names', label='Plot', style='custom',
+                     editor=CheckListEditor( cols=4,values=[('bg_corrected', 'BG Corrected'),
+                                                            ('signal', 'Signal'), ('bg', 'Background'),
+                                                            ('ref', 'Reference')])),
+            ),
+            Item(name='displays', show_label=False,
+                 editor=ListEditor(use_notebook=True,style='custom'), springy=True),
+            show_border=True, label='Visualization'),
+
+            )
+
+    def __init__(self, project):
+        super(ProjectPlottingTool, self).__init__()
+        self.project = project
+
+    def _anytrait_changed(self,name):
+        if name in ['interp_method','bin', 'nbins', 'round_wl','plot_data_names']:
+            for experiment in self.project.experiments:
+                experiment.has_mesh = False
+
+    def _clear_plot_fired(self):
+        self.displays = []
+
+    def _displays_default(self):
+        return [SingleDataPlot(),]
+
+    def _plot_fired(self):
+        for n,experiment in enumerate(self.project.experiments):
+            if experiment.is_selected:
+                pass
+            else:
+                continue
+            if len(self.displays)<n+1:
+                display = SingleDataPlot()
+                self.displays.append(display)
+            else:
+                display = self.displays[n]
+            matplotlib.rcParams['savefig.transparent'] = True
+            if self.new_window:
+                figure = None
+            else:
+                figure = display.figure
+
+            kwargs = dict(
+                figure=figure,
+                data_name=self.plot_data_names[0],
+                data_names=self.plot_data_names,
+                nlevel=self.nlevel,
+                selected_only=self.selected_only,
+                bin = self.bin,
+                nbins = self.nbins,
+                round_wl = self.round_wl,
+                colbar = self.colbar,
+                interp_method=self.interp_method,
+                rstride=self.stride[0],
+                cstride=self.stride[1],
+                set_levels=self.set_levels,
+                contf=self.contf,
+                contlabels=self.contlabels,
+                label_every=self.label_every,
+                cmap=self.cmap,
+                )
+
+            if self.level_range[1]-self.level_range[0]>10:
+                kwargs['level_range'] = self.level_range
+
+            {'1D Lines':experiment.plot_1d,
+            '3D Mixed': experiment.plot_3d_mixed,
+            '3D Surface': experiment.plot_3d_surf,
+            '3D Wires': experiment.plot_3d_wires,
+            '2D Contours': experiment.plot_2d_contour,
+             '2D Mixed': experiment.plot_2d_mixed,
+            '2D Image': experiment.plot_2d_image,
+
+            '3D Polygons': experiment.plot_3d_polygons,
+            }[self.plot_select](**kwargs)
 
 

@@ -8,7 +8,7 @@ from matplotlib.colors import colorConverter
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
-from matplotlib import cm
+#from matplotlib import cm
 import matplotlib
 matplotlib.style.use('ggplot')
 
@@ -114,7 +114,7 @@ class SpectrumExperiment(BaseExperiment):
 
     #####       GUI View     #####
     import_tool = Instance(ImportToolBase,transient=True)
-    plotting_tool = Instance(ExperimentPlottingTool,transient=True)
+    plotting_tool = Instance(ExperimentPlottingTool)
     analysis_tool = Instance(ExperimentAnalysisTool,transient=True)
     integration_tool = Instance(ExperimentIntegrationTool,transient=True)
     fitting_tool_1d = Instance(FittingTool1D,transient=True)
@@ -352,7 +352,7 @@ class SpectrumExperiment(BaseExperiment):
         return final
 
     def save_pandas(self,path=None, format=None):
-        df = self.make_dataframe(bin_data=self.export_binned,round_wl=True)
+        df = self.make_db_dataframe()
 
         functions = {
                     'CSV':df.to_csv, 'Text':df.to_string, 'Excel':df.to_excel, 'Latex':df.to_latex,
@@ -365,7 +365,7 @@ class SpectrumExperiment(BaseExperiment):
             df.to_clipboard()
             return
         else:
-            df.functions[fmt](path)
+            functions[fmt](path)
             return
 
     def plot_1d(self,**kwargs):
@@ -562,9 +562,8 @@ class SpectrumExperiment(BaseExperiment):
         else:
             ax = axs
         X, Y, Z = self.make_meshgrid(**kwargs)
-        surf = ax.plot_surface(X, Y, Z, rstride=rstride, cstride=cstride, cmap=cm.coolwarm,
+        surf = ax.plot_surface(X, Y, Z, rstride=rstride, cstride=cstride, cmap=cmx.coolwarm,
                                linewidth=0, antialiased=False)
-
         span = Z.max()-Z.min()
         ax.set_zlim(Z.min(), Z.max()+span/10)
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
@@ -625,7 +624,7 @@ class SpectrumExperiment(BaseExperiment):
         figure = kwargs.get('figure',None)
         axs = kwargs.get('axs',None)
         title = kwargs.get('title',' ')
-
+        cmap = kwargs.get('cmap', 'jet')
         if figure is None:
             fig = plt.figure()
         else:
@@ -636,7 +635,7 @@ class SpectrumExperiment(BaseExperiment):
         else:
             ax = axs
         X, Y, Z = self.make_meshgrid(**kwargs)
-        im = ax.imshow(Z.T, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap=cm.jet)
+        im = ax.imshow(Z.T, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap=getattr(cmx,cmap))
         fig.suptitle(title)
         #plt.imshow(Z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower')
         if figure is None:
@@ -653,10 +652,12 @@ class SpectrumExperiment(BaseExperiment):
         contf = kwargs.get('contf', True)
         colbar = kwargs.get('colbar', False)
         setlabels = kwargs.get('setlabels', True)
+        contlabels = kwargs.get('contlabels', True)
         setlimits = kwargs.get('setlimits', True)
         gsigma = kwargs.get('gsigma', 0.7)
         set_levels = kwargs.get('set_levels', 'linear')
-
+        label_every = kwargs.get('label_every', 2)
+        cmap = kwargs.get('cmap', 'jet')
         if figure is None:
             fig = plt.figure()
         else:
@@ -681,11 +682,21 @@ class SpectrumExperiment(BaseExperiment):
             levels = np.power(10, lev_exp)
             norm=colors.LogNorm()
         if contf:
-            contfplot = ax.contourf(X, Y, Z, cmap=cm.jet, levels=levels,norm=norm)
+            contfplot = ax.contourf(X, Y, Z, cmap=getattr(cmx,cmap), levels=levels, norm=norm)
             if colbar:
                 fig.colorbar(contfplot, ax=ax, format="%.2e")
         Z = gaussian_filter(Z,sigma=gsigma)
         contplot = ax.contour(X, Y, Z,  levels=levels, colors='k', )
+
+        if contlabels:
+            fmt = '%.2e'
+            inline=True
+            #if set_levels=='log':
+                #import matplotlib.ticker as ticker
+                #fmt = ticker.LogFormatterMathtext()
+                #fmt.create_dummy_axis()
+                #inline=False
+            plt.clabel(contplot,levels[1::label_every],inline=inline,fmt=fmt)
         if setlabels:
             ax.set_xlabel('Excitation Wavelength [nm]')
             ax.set_ylabel('Emission Wavelength [nm]')
