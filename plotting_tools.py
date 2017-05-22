@@ -30,6 +30,7 @@ class PlottingToolBase(HasTraits):
     bin = Bool(False)
     nbins = Int(0)
     round_wl = Bool(False)
+    plot_style = Enum('ggplot',plt.style.available)
 
     def mpl_setup(self):
         self.figure.patch.set_facecolor('none')
@@ -37,6 +38,9 @@ class PlottingToolBase(HasTraits):
     def _display_default(self):
         return SingleDataPlot()
 
+    def _plot_style_changed(self,new):
+        pass
+        #plt.style.use(new)
 
 class MeasurementPlottingTool(PlottingToolBase):
     measurement = Any()
@@ -119,8 +123,9 @@ class ExperimentPlottingTool(PlottingToolBase):
         VGroup(
             HGroup(
                 Item(name='plot_select', label='Plot Type'),
-                Item(name='plot', show_label=False, ),
-                Item(name='clear_plot', show_label=False, ),
+                #Item(name='plot_style', label='Style'),
+                Item(name='plot', show_label=False,),
+                Item(name='clear_plot', show_label=False,),
 
                 Item(name='new_window', label='Plot in new window'),
                 Item(name='selected_only', label='Plot Selected Only',enabled_when='plot_select=="1D Lines"'),
@@ -238,6 +243,7 @@ class ProjectPlottingTool(PlottingToolBase):
         VGroup(
             HGroup(
                 Item(name='plot_select', label='Plot Type'),
+                #Item(name='plot_style', label='Style'),
                 Item(name='plot', show_label=False, ),
                 Item(name='clear_plot', show_label=False, ),
 
@@ -292,17 +298,21 @@ class ProjectPlottingTool(PlottingToolBase):
         return [SingleDataPlot(),]
 
     def _plot_fired(self):
+
         for n,experiment in enumerate(self.project.experiments):
             if experiment.is_selected:
                 pass
             else:
                 continue
-            if len(self.displays)<n+1:
-                display = SingleDataPlot()
-                self.displays.append(display)
+            if self.new_window:
+                pass
             else:
-                display = self.displays[n]
-            matplotlib.rcParams['savefig.transparent'] = True
+                if len(self.displays)<n+1:
+                    display = SingleDataPlot()
+                    self.displays.append(display)
+                else:
+                    display = self.displays[n]
+
             if self.new_window:
                 figure = None
             else:
@@ -341,5 +351,5 @@ class ProjectPlottingTool(PlottingToolBase):
 
             '3D Polygons': experiment.plot_3d_polygons,
             }[self.plot_select](**kwargs)
-
+            plt.rcParams['savefig.transparent'] = True
 
