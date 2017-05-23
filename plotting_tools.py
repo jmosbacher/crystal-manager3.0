@@ -31,6 +31,9 @@ class PlottingToolBase(HasTraits):
     nbins = Int(0)
     round_wl = Bool(False)
     plot_style = Enum('ggplot',plt.style.available)
+    #savetofile = Bool(False)
+    savepath = File()
+    saveformat = Enum('png',['png','pdf','ps','svg','eps'])
 
     def mpl_setup(self):
         self.figure.patch.set_facecolor('none')
@@ -156,9 +159,11 @@ class ExperimentPlottingTool(PlottingToolBase):
                                                             ('signal', 'Signal'), ('bg', 'Background'),
                                                             ('ref', 'Reference')])),
             ),
+            HGroup(
+                Item(name='savepath',label='Save to'),
+            ),
             Item(name='display', show_label=False,style='custom', springy=True),
             show_border=True, label='Visualization'),
-
             )
 
     def __init__(self, experiment):
@@ -213,8 +218,12 @@ class ExperimentPlottingTool(PlottingToolBase):
 
         '3D Polygons': self.experiment.plot_3d_polygons,
         }[self.plot_select](**kwargs)
-
-
+        if self.savepath:
+            path = self.savepath
+            if figure is None:
+                plt.savefig(path, transparent=True, format=self.saveformat)
+            else:
+                figure.savefig(path, transparent=True, format=self.saveformat)
 
 class ProjectPlottingTool(PlottingToolBase):
 
@@ -266,6 +275,8 @@ class ProjectPlottingTool(PlottingToolBase):
                    Item(name='label_every', label='Label every', visible_when="plot_select in ['2D Contours']"),
                    Item(name='cmap', label='Colormap',
                         visible_when="plot_select in ['2D Contours','2D Mixed', '2D Image']"),
+                   Item(name='linewidths', label='Linewidth',
+                        visible_when="plot_select in ['2D Contours',]"),
                    ),
             HGroup(
                 Item(name='bin', label='Bin Data'),
@@ -275,6 +286,10 @@ class ProjectPlottingTool(PlottingToolBase):
                      editor=CheckListEditor( cols=4,values=[('bg_corrected', 'BG Corrected'),
                                                             ('signal', 'Signal'), ('bg', 'Background'),
                                                             ('ref', 'Reference')])),
+
+            ),
+            HGroup(
+                Item(name='savepath', label='Save Prefix'),
             ),
             Item(name='displays', show_label=False,
                  editor=ListEditor(use_notebook=True,style='custom'), springy=True),
@@ -336,6 +351,7 @@ class ProjectPlottingTool(PlottingToolBase):
                 contlabels=self.contlabels,
                 label_every=self.label_every,
                 cmap=self.cmap,
+                linewidths = self.linewidths,
                 )
 
             if self.level_range[1]-self.level_range[0]>10:
@@ -352,4 +368,10 @@ class ProjectPlottingTool(PlottingToolBase):
             '3D Polygons': experiment.plot_3d_polygons,
             }[self.plot_select](**kwargs)
             plt.rcParams['savefig.transparent'] = True
+            if self.savepath:
+                path = self.savepath+'_'+experiment.name
+                if figure is None:
+                    plt.savefig(path, transparent=True, format=self.saveformat)
+                else:
+                    figure.savefig(path, transparent=True, format=self.saveformat)
 

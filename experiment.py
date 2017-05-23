@@ -517,7 +517,7 @@ class SpectrumExperiment(BaseExperiment):
         #alpha = kwargs.get('alpha',0.5)
         rstride = kwargs.get('rstride',2)
         cstride = kwargs.get('cstride',2)
-
+        #savepath = kwargs.get('savepath',None)
         if figure is None:
             fig = plt.figure()
         else:
@@ -543,6 +543,7 @@ class SpectrumExperiment(BaseExperiment):
             plt.show()
         else:
             fig.canvas.draw()
+        #return fig
 
     def plot_3d_surf(self,**kwargs ):
         figure = kwargs.get('figure',None)
@@ -657,7 +658,8 @@ class SpectrumExperiment(BaseExperiment):
         gsigma = kwargs.get('gsigma', 0.7)
         set_levels = kwargs.get('set_levels', 'linear')
         label_every = kwargs.get('label_every', 2)
-        cmap = kwargs.get('cmap', 'jet')
+        cmap = kwargs.get('cmap', 'magma')
+        linewidths = kwargs.get('linewidths', 1)
         if figure is None:
             fig = plt.figure()
         else:
@@ -686,7 +688,7 @@ class SpectrumExperiment(BaseExperiment):
             if colbar:
                 fig.colorbar(contfplot, ax=ax, format="%.2e")
         Z = gaussian_filter(Z,sigma=gsigma)
-        contplot = ax.contour(X, Y, Z,  levels=levels, colors='k', )
+        contplot = ax.contour(X, Y, Z,  levels=levels, colors='k', linewidths=linewidths)
 
         if contlabels:
             fmt = '%.2e'
